@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Private NAS</title>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+</head>
+<!-- 页面背景改为深灰色，字体默认颜色改为浅色 -->
+<body class="bg-gray-900 text-gray-200 min-h-screen p-4 sm:p-8">
+
+    <div class="max-w-4xl mx-auto">
+        <header class="mb-8">
+            <!-- 标题颜色改为白色，边框改为更科技感的靛青色 -->
+            <h1 class="text-3xl font-extrabold text-white border-b border-indigo-700/50 pb-2">
+                 <!-- 将 'Private' 包裹在 span 中，使用 text-sky-400 浅蓝色高亮显示 -->
+                 <span class="text-sky-400">Private</span> NAS Server
+            </h1>
+            <!-- 副标题颜色改为浅灰色 -->
+            <p class="text-sm text-gray-400 mt-1">共享目录: C:\NAS</p>
+        </header>
+
+        <!-- 上传区域容器背景改为略浅的深灰 -->
+        <div class="upload-form bg-gray-800 shadow-lg rounded-xl p-6 mb-8 border border-indigo-600">
+            <!-- 标题颜色改为浅靛青色 -->
+            <h2 class="text-xl font-semibold text-indigo-300 mb-4 flex items-center">
+                <!-- 上传图标保持靛青色 -->
+                <span class="mr-2 text-indigo-400">⬆️</span> 上传
+            </h2>
+            <form action="/upload" method="post" enctype="multipart/form-data" class="flex flex-col sm:flex-row gap-3 items-center">
+                <!-- 文件选择器按钮使用浅色靛青搭配，与深色背景适配 -->
+                <input type="file" name="nasFile" required 
+                       class="flex-grow w-full sm:w-auto p-2 border border-gray-600 rounded-md text-sm text-white file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-700 file:text-indigo-100 hover:file:bg-indigo-600 cursor-pointer">
+                <!-- 上传按钮保持深靛青色作为主操作色，hover效果调整 -->
+                <button type="submit" 
+                        class="w-full sm:w-auto px-6 py-2 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-500 transition duration-150 shadow-md">
+                    开始上传
+                </button>
+            </form>
+        </div>
+
+        <!-- 新增的法律声明文字，使用 text-xs 和 text-gray-400 样式 -->
+        <p class="text-xs text-gray-400 mb-6 px-1 text-justify">
+            请注意，您即将上传的文件必须符合国家法律法规及平台规范。严禁上传涉黄、暴力、违法、侵权或其他不当内容。上传前请确保文件内容合法、安全，否则将承担相应法律责任。平台有权对违规内容进行删除，并对上传者采取封禁或追责措施。上传即表示您已阅读并同意遵守以上规定，请谨慎操作。
+        </p>
+
+        <!-- 文件列表容器背景改为略浅的深灰，边框变深 -->
+        <div class="file-list-container bg-gray-800 shadow-xl rounded-xl border border-gray-700">
+            <!-- 标题颜色改为浅靛青色。注意：移除了 border-b，以便将分隔线放在时间戳下方 -->
+            <h2 class="text-xl font-semibold text-indigo-300 px-4 pt-4">文件列表</h2>
+            
+            <!-- 列表刷新时间占位符：使用 text-xs 和 text-gray-400 实现灰色小字 -->
+            <p id="refresh-time" class="text-xs text-gray-400 pb-4 px-4 border-b border-gray-700">
+                <!-- JavaScript 将填充此内容 -->
+            </p>
+
+            <ul class="divide-y divide-gray-700">
+                <% 
+                // 遍历后端传来的文件列表 (EJS逻辑不变)
+                files.forEach(function(file) { 
+                %>
+                    <!-- 列表项悬停背景改为更深的灰色 -->
+                    <li class="p-4 hover:bg-gray-700 flex justify-between items-center transition duration-100">
+                        <div class="flex items-center">
+                            <span class="text-xl mr-3 
+                                <% if (file.isDirectory) { %> text-cyan-400 <% } else { %> text-sky-400 <% } %>">
+                            
+                                <!-- 文件夹图标使用亮青色 (Cyan) -->
+                                <% if (file.isDirectory) { %> 📁
+                                <!-- 文件图标使用科技蓝 (Sky) -->
+                                <% } else { %> 📄
+                                <% } %>
+                            </span>
+                            
+                            <% if (file.isFile) { %>
+                                <!-- 链接文本改为白色 -->
+                                <a href="/download/<%= encodeURIComponent(file.name) %>" 
+                                   class="text-white font-medium hover:text-indigo-400 transition truncate max-w-xs sm:max-w-md">
+                                    <%= file.name %>
+                                </a>
+                            <% } else if (file.isDirectory) { %>
+                                <!-- 文件夹名文本改为白色 -->
+                                <strong class="text-white font-semibold">
+                                    <%= file.name %> /
+                                </strong>
+                            <% } %>
+                        </div>
+                        
+                        <% if (file.isFile) { %>
+                            <!-- 可下载标签使用深色背景下的宝石绿色 -->
+                            <span class="text-xs text-emerald-300 bg-emerald-800/50 px-2 py-1 rounded-full hidden sm:block">
+                                可下载
+                            </span>
+                        <% } else if (file.isDirectory) { %>
+                             <!-- 文件夹标签使用深色背景下的浅灰色 -->
+                             <span class="text-xs text-gray-400 bg-gray-700 px-2 py-1 rounded-full hidden sm:block">
+                                文件夹
+                            </span>
+                        <% } %>
+                    </li>
+                <% }); %>
+            </ul>
+            
+            <% if (files.length === 0) { %>
+                <!-- 目录为空提示颜色调整 -->
+                <p class="p-4 text-center text-gray-400">
+                    共享目录为空！
+                </p>
+            <% } %>
+        </div>
+    </div> <!-- End of max-w-4xl mx-auto -->
+
+    <!-- 新增页脚版权信息，居中显示，使用更深的灰色小字 -->
+    <footer class="mt-12 text-center text-xs text-gray-500">
+        <p class="mb-1">© 2025 JHCWColin. All rights reserved.</p>
+        <p>个人作品及内容版权所有，未经允许禁止转载或使用。</p>
+    </footer>
+
+    <!-- JavaScript 代码：在页面加载时获取并显示刷新时间 -->
+    <script>
+        function updateRefreshTime() {
+            // 获取当前瞬时日期和时间
+            const now = new Date();
+
+            // 使用 toLocaleDateString 和 toLocaleTimeString 进行中文格式化
+            const dateStr = now.toLocaleDateString('zh-CN', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            });
+
+            const timeStr = now.toLocaleTimeString('zh-CN', {
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: false // 确保使用 24 小时制
+            });
+
+            const displayElement = document.getElementById('refresh-time');
+
+            if (displayElement) {
+                // 写入所需的文本和格式
+                displayElement.innerHTML = `列表刷新时间：${dateStr} ${timeStr}`;
+            }
+        }
+
+        // 页面加载完成后立即执行时间更新函数
+        window.onload = updateRefreshTime;
+    </script>
+
+</body>
+</html>
