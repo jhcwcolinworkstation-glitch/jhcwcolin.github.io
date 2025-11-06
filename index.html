@@ -1,0 +1,595 @@
+<!DOCTYPE HTML>
+<!--
+	Hielo by TEMPLATED
+	templated.co @templatedco
+	Released for free under the Creative Commons Attribution 3.0 license (templated.co/license)
+-->
+<html>
+<head>
+  <title>JHCWColin's Space</title>
+  <meta charset="utf-8">
+  <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="assets/css/main.css">
+  
+  <!-- 引入 AOS.js 的 CSS 文件 (已改为本地路径，确保离线可用) -->
+  <link href="assets/css/aos.css" rel="stylesheet">
+
+  <!-- 暗黑模式覆盖样式 (Dark Mode Override Styles) -->
+  <style>
+    /* 全局暗黑模式覆盖 */
+    /* 1. 设置 body 为固定背景图片，并添加深色覆盖层 */
+    body {
+        /* 使用一个图片作为背景，并使其固定，实现视差效果 */
+        background-image: url('images/slide01.jpg') !important;
+        background-attachment: fixed !important;
+        background-size: cover !important;
+        background-position: center !important;
+        position: relative !important;
+        /* 确保内容颜色为白色 */
+        color: #ffffff !important; 
+    }
+    
+    /* 2. 在 body 上添加一个深色半透明覆盖层 (全局背景) */
+    body::before {
+        content: '';
+        position: fixed; /* 使用 fixed 确保覆盖层覆盖整个视口 */
+        top: 0; left: 0; right: 0; bottom: 0;
+        /* 关键：深色半透明度 overlay (85% 不透明度) */
+        background: rgba(0, 0, 0, 0.85) !important; 
+        z-index: -1; /* 确保内容在上面 */
+    }
+
+    /* 3. 覆盖内容区域背景: #one, #three 和 #four 保持透明，直接显示 body 的固定背景图 */
+    #one.wrapper, #three.wrapper, #four.wrapper {
+        background-color: transparent !important;
+    }
+    
+    /* #two 保持其特定的深色背景，但添加透明度 (与 #one, #three, #four 略有不同，但都为半透明深色) */
+    #two.wrapper.style3 {
+        /* 使用 rgba(8, 8, 8, 0.95) 来实现 #080808 95% 透明度 */
+        background-color: rgba(8, 8, 8, 0.95) !important; 
+    }
+
+
+    /* 4. 覆盖内容框 (.box) 的背景 (用于 #one 和 #four 内部的卡片，确保内容可读) */
+    .box {
+        /* 使用 rgba(34, 34, 34, 0.95) 来实现 #222222 95% 透明度 */
+        background-color: rgba(34, 34, 34, 0.95) !important; 
+    }
+    
+    /* 强制所有标题、段落和链接为纯白色，以解决外部样式表带来的颜色冲突 */
+    h1, h2, h3, h4, h5, h6, p, strong, span, a {
+        color: #ffffff !important; 
+    }
+
+    /* 页眉和导航链接特殊处理，确保可见 */
+    #header .logo a, #header a, #menu a {
+        color: #ffffff !important;
+    }
+
+    /* 确保按钮和链接在暗黑模式下有足够的对比度 */
+    /* 强制所有 .button 元素的文本和边框为纯白色 (通过提高选择器优先级) */
+    .button, .button.alt, a.button, a.button.alt {
+        color: #ffffff !important;
+        border-color: #ffffff !important;
+        background-color: transparent !important; /* 确保背景透明或暗色 */
+    }
+
+    /* 添加悬停效果，使按钮更明显 (通过提高选择器优先级) */
+    .button:hover, .button.alt:hover, a.button:hover, a.button.alt:hover {
+        background-color: rgba(255, 255, 255, 0.1) !important; /* 悬停时稍微变亮 */
+        color: #ffffff !important;
+    }
+    
+    /* 5. 页脚样式：使用深色，略微透明，让 body 背景若隐若现 */
+    #footer, .copyright {
+        /* 使用 rgba(8, 8, 8, 0.95) 来实现 #080808 95% 透明度 */
+        background-color: rgba(8, 8, 8, 0.95) !important; 
+        color: #ffffff !important; 
+    }
+    
+    #footer .icons a {
+        color: #ffffff !important; 
+        border-color: #ffffff !important;
+    }
+
+    /* 全局布局调整: 强制 #four 内的方框无论屏幕大小都堆叠并保持 100% 宽度 */
+    
+    /* 1. 确保 grid-style 容器本身没有偏移 */
+    #four .grid-style {
+        /* 确保容器本身没有内边距或外边距导致子元素对齐不一致 */
+        margin: 0 !important;
+        padding: 0 !important;
+        display: block !important;
+        /* 强制清除所有浮动，以防 grid-style 容器宽度计算错误 */
+        overflow: hidden !important; 
+    }
+
+    /* 2. 确保每个项目 div 都是全宽且没有水平边距，保证横坐标统一 */
+    #four .grid-style > div {
+        width: 100% !important; /* 强制全宽 */
+        /* 移除所有水平边距，并设置底部间距 */
+        margin: 0 auto 2em auto !important; /* Top: 0, Right: auto, Bottom: 2em, Left: auto */
+        float: none !important; /* 禁用可能的浮动 */
+        display: block !important; /* 确保是标准块级元素，消除布局干扰 */
+        box-sizing: border-box !important; /* 确保 padding/border 不影响 100% 宽度 */
+    }
+    
+    /* 移除最后一个元素的底部间距，保持干净 */
+    #four .grid-style > div:last-child {
+        margin-bottom: 0 !important;
+    }
+
+    /* --- 新增 #four 扁平化和横向布局样式 (New flat/horizontal layout for #four) --- */
+    
+    /* 1. 容器设置为Flexbox，扁平化高度，并垂直居中内容 */
+    #four .box {
+        display: flex !important;
+        align-items: center !important; /* 垂直居中图片和内容 */
+        height: 200px !important; /* FIXED HEIGHT: 固定高度 */
+        min-height: 200px !important; /* 设置最小高度以确保固定 */
+        padding: 0 !important; /* 移除 box 默认内边距 */
+        border-radius: 0 !important; /* REMOVED CURVE: 移除圆角，实现棱角分明 */
+    }
+    
+    /* 2. 图片部分 (最左边) */
+    #four .box .image.fit {
+        flex-shrink: 0 !important; /* 不压缩图片 */
+        width: 25% !important; /* 图片占据大约四分之一宽度 */
+        height: 100% !important; /* 保持与 box 相同的高度 */
+        margin: 0 !important; /* 移除多余的边距 */
+        border-radius: 0 !important; /* REMOVED CURVE: 移除图片圆角 */
+        overflow: hidden !important; /* 裁剪超出圆角的部分 */
+    }
+
+    #four .box .image.fit img {
+        object-fit: cover !important; /* 确保图片铺满整个区域 */
+        width: 100% !important;
+        height: 100% !important;
+    }
+    
+    /* 3. 文字内容部分 (中间) */
+    #four .box .content {
+        flex-grow: 1 !important; /* 占据剩余空间 */
+        padding: 1.5em 2em !important; /* 内部填充 */
+        display: flex !important;
+        flex-direction: column !important; /* 内部内容（文字和按钮）垂直堆叠 */
+        justify-content: center !important; /* 垂直居中文本块 */
+        height: 100% !important;
+        text-align: left !important; /* 左对齐文字 */
+    }
+    
+    /* 4. 文本和按钮对齐 (文字内容下面是按钮) */
+    #four .box .content header {
+        text-align: left !important; /* 强制左对齐 */
+        margin-bottom: 0.5em !important;
+    }
+    #four .box .content header p {
+        margin-bottom: 0 !important;
+    }
+    
+    #four .box .content footer {
+        margin-top: 1em !important; /* 按钮在文字下面，增加上边距 */
+        text-align: left !important; /* 按钮左对齐 */
+    }
+
+    /* 针对小屏幕，恢复图片和内容上下堆叠，保持全宽样式，防止内容过于拥挤 */
+    @media screen and (max-width: 736px) {
+        #four .box {
+            flex-direction: column !important;
+            height: auto !important; /* 移动端改为高度自适应 */
+            min-height: auto !important;
+            border-radius: 0 !important; /* 移动端保持棱角 */
+        }
+        #four .box .image.fit {
+            width: 100% !important;
+            height: 150px !important; /* 图片高度固定 */
+            border-radius: 0 !important; /* 移动端保持棱角 */
+        }
+        #four .box .content {
+            width: 100% !important;
+            padding: 1.5em !important;
+        }
+    }
+
+    /* --- 结束 #four 扁平化和横向布局样式 --- */
+    
+    /* Custom Modal Styles (自定义弹窗样式) */
+    .modal-overlay {
+        display: none; /* Hidden by default */
+        position: fixed;
+        z-index: 1000; /* High z-index to cover everything */
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        overflow: auto;
+        background-color: rgba(0, 0, 0, 0.7); /* Black w/ opacity */
+        /* 添加模糊效果以增强视觉效果 */
+        backdrop-filter: blur(5px); 
+    }
+
+    .modal-content {
+        background-color: rgba(34, 34, 34, 0.98) !important; /* Dark background from .box style */
+        margin: 15% auto; /* 15% from the top and centered */
+        padding: 40px;
+        border: 1px solid #444; /* 轻微边框 */
+        width: 80%; 
+        max-width: 400px;
+        border-radius: 8px;
+        box-shadow: 0 5px 25px rgba(0, 0, 0, 0.5); /* 阴影 */
+        transform: translateY(-50px);
+        animation: slide-in 0.3s forwards;
+    }
+
+    @keyframes slide-in {
+        to {
+            transform: translateY(0);
+        }
+    }
+
+    .modal-close {
+        color: #aaa;
+        float: right;
+        font-size: 28px;
+        font-weight: bold;
+        line-height: 20px;
+        cursor: pointer;
+        transition: color 0.3s;
+    }
+
+    .modal-close:hover,
+    .modal-close:focus {
+        color: #ffffff;
+        text-decoration: none;
+        cursor: pointer;
+    }
+    /* 确保弹窗内的文本是白色的 */
+    .modal-content h2, .modal-content p {
+        color: #ffffff !important;
+    }
+    
+    /* 响应式调整 modal */
+    @media screen and (max-width: 736px) {
+        .modal-content {
+            margin: 40% 10px; /* 移动端顶部多留空间，左右边距 10px */
+            width: auto;
+            max-width: none;
+        }
+    }
+
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <header id="header" class="alt">
+    <div class="logo"><a href="index.html">JHCWColin's Space <span>professional photographer, editor, composer, and coder</span></a></div>
+    <a href="#menu">菜单</a>
+  </header>
+
+  <!-- Nav -->
+  <nav id="menu">
+    <ul class="links">
+      <li><a href="index.html">JHCWColin主页</a></li>
+      <!-- 重新添加 target="_blank" 以在新窗口打开 -->
+      <li><a href="https://yiban.space" target="_blank">强基一班官网</a></li>
+      <li><a href="elements.html">升旗快报生成器</a></li>
+    </ul>
+  </nav>
+
+  <!-- Banner (首页轮播图的文本使用淡入效果) -->
+  <section class="banner full">
+    <article>
+      <img src="images/slide01.jpg" alt="" width="1440" height="961">
+      <div class="inner">
+        <header data-aos="fade-in" data-aos-duration="1500">
+          <p style="opacity: 0.5;">用创意构建无限可能，追寻每一份灵感的足迹。<br>JHCWColin Photography</p>
+          <h2>摄影摄像</h2>
+        </header>
+      </div>
+    </article>
+    <article>
+      <img src="images/slide02.jpg" alt="" width="1440" height="961">
+      <div class="inner">
+        <header data-aos="fade-in" data-aos-duration="1500" data-aos-delay="100">
+          <p style="opacity: 0.5;">用镜头捕捉每一刻，用剪辑讲述故事。<br>JHCWColin Editing</p>
+          <h2>剪辑</h2>
+        </header>
+      </div>
+    </article>
+    <article>
+      <img src="images/slide03.jpg" alt="" width="1440" height="962">
+      <div class="inner">
+        <header data-aos="fade-in" data-aos-duration="1500" data-aos-delay="200">
+          <p style="opacity: 0.5;">以技术连接无限可能，解决每一个挑战。<br>JHCWColin VPN</p>
+          <h2>VPN节点搭建</h2>
+        </header>
+      </div>
+    </article>
+    <article>
+      <img src="images/slide04.jpg" alt="" width="1440" height="961">
+      <div class="inner">
+        <header data-aos="fade-in" data-aos-duration="1500" data-aos-delay="300">
+          <p style="opacity: 0.5;">用代码构建逻辑，用思维解决问题。<br>JHCWColin Coding</p>
+          <h2>代码编写</h2>
+        </header>
+      </div>
+    </article>
+    <article>
+      <img src="images/slide05.jpg" alt="" width="1440" height="962">
+      <div class="inner">
+        <header data-aos="fade-in" data-aos-duration="1500" data-aos-delay="400">
+          <p style="opacity: 0.5;">用音符表达情感，用旋律编织梦想。<br>JHCWColin Composing</p>
+          <h2>作曲</h2>
+        </header>
+      </div>
+    </article>
+  </section>
+
+  <!-- One (内容模块，使用 fade-up 渐显浮现) -->
+  <section id="one" class="wrapper style2">
+    <div class="inner">
+      <div class="grid-style">
+
+        <div data-aos="fade-up" data-aos-duration="1000">
+          <div class="box">
+            <div class="image fit">
+              <img src="images/pic02.jpg" alt="" width="600" height="300"></div>
+            <div class="content">
+              <header class="align-center"><p>创作与技术的融合</p>
+                <h2>我的音乐与编程</h2>
+              </header><p> 我将编曲与编程结合，创作出独一无二的作品。从音乐的旋律到代码的逻辑，我为每一项工作倾注热情与创意。</p>
+              <footer class="align-center"><a href="#" class="button alt">了解更多</a></footer>
+            </div>
+          </div>
+        </div>
+
+        <div data-aos="fade-up" data-aos-duration="1000" data-aos-delay="200">
+          <div class="box">
+            <div class="image fit">
+              <img src="images/pic03.jpg" alt="" width="600" height="300"></div>
+            <div class="content">
+              <header class="align-center"><p>摄影与剪辑的完美结合</p>
+                <h2>我的摄影与剪辑作品</h2>
+              </header><p> 通过摄影捕捉每一刻，通过剪辑讲述每一段故事。我的作品不仅展示了视觉艺术，也融入了音乐与情感。</p>
+              <footer class="align-center"><a href="#" class="button alt">了解更多</a></footer>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- Two (标题，使用 fade-up 渐显浮现) -->
+  <section id="two" class="wrapper style3">
+    <div class="inner">
+      <header class="align-center" data-aos="fade-up" data-aos-duration="1000">
+        <p>我通过技术与创意打破边界，不断创新与突破。</p>
+        <h2>无尽的创意之旅</h2>
+      </header>
+    </div>
+  </section>
+
+  <!-- Three (画廊，标题使用 fade-up，图片使用 staggered 效果) -->
+  <section id="three" class="wrapper style2">
+    <div class="inner">
+      <header class="align-center" data-aos="fade-up" data-aos-duration="1000">
+        <p class="special">我的作品涵盖了多个领域，无论是视觉艺术、编程还是音乐创作。</p>
+        <h2>探索我的作品</h2>
+      </header>
+      <div class="gallery">
+        <div data-aos="fade-up" data-aos-delay="100">
+          <div class="image fit">
+            <a href="#"><img src="images/pic01.jpg" alt="" width="600" height="300"></a>
+          </div>
+        </div>
+        <div data-aos="fade-up" data-aos-delay="200">
+          <div class="image fit">
+            <a href="#"><img src="images/pic02.jpg" alt="" width="600" height="300"></a>
+          </div>
+        </div>
+        <div data-aos="fade-up" data-aos-delay="300">
+          <div class="image fit">
+            <a href="#"><img src="images/pic03.jpg" alt="" width="600" height="300"></a>
+          </div>
+        </div>
+        <div data-aos="fade-up" data-aos-delay="400">
+          <div class="image fit">
+            <a href="#"><img src="images/pic04.jpg" alt="" width="600" height="300"></a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+  
+  <!-- Four (新的入口模块 - 扁平长方形入口) -->
+  <section id="four" class="wrapper style2">
+      <div class="inner">
+          <header class="align-center" data-aos="fade-up" data-aos-duration="1000">
+              <p class="special">更多探索：技术服务与创意项目</p>
+              <h2>我的特别项目</h2>
+          </header>
+          <div class="grid-style">
+              
+              <div data-aos="fade-up" data-aos-duration="1000" data-aos-delay="100">
+                  <div class="box">
+                      <div class="image fit">
+                          <!-- 使用一个通用的图片作为 VPN 占位符 -->
+                          <img src="images/pic01.jpg" alt="VPN Icon Placeholder" width="600" height="300">
+                      </div>
+                      <div class="content">
+                          <header>
+                              <h2>自建VPN节点获取</h2>
+                          </header>
+                          <p>提供安全、稳定的私人网络连接方案，支持多设备、高速访问全球互联网，保障您的数据安全与隐私。</p>
+                          <!-- 修改：添加 id="vpn-button" 并使用 javascript:void(0); 来禁用默认链接跳转 -->
+                          <footer><a href="javascript:void(0);" id="vpn-button" class="button alt">立即获取</a></footer>
+                      </div>
+                  </div>
+              </div>
+
+              <div data-aos="fade-up" data-aos-duration="1000" data-aos-delay="200">
+                  <div class="box">
+                      <div class="image fit">
+                          <!-- 使用一个通用的图片作为音乐作品占位符 -->
+                          <img src="images/slide05.jpg" alt="Music Notes Placeholder" width="600" height="300">
+                      </div>
+                      <div class="content">
+                          <header>
+                              <h2>探索音乐作品</h2>
+                          </header>
+                          <p>浏览我的原创音乐和编曲作品，涵盖多种风格。聆听旋律，感受音乐背后的情感和故事。</p>
+                          <footer>
+                              <!-- 调整布局以容纳多个按钮，使用 flex 布局确保按钮间的间隔和响应式换行 -->
+                              <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                                  <a href="https://music.163.com/#/artist?id=53361415" target="_blank" class="button alt">网易云音乐</a>
+                                  <a href="https://open.spotify.com/artist/1X1AIQIWK9VOMCuMtwGAIB?si=J7OVox1WRgysspGEEmpp6Q" target="_blank" class="button alt">Spotify</a>
+                                  <a href="https://music.youtube.com/channel/UCLvGbFwKagK9DCd3W81FAcQ?si=P9cGykGUObEuXTOc" target="_blank" class="button alt">YouTube Music</a>
+                              </div>
+                          </footer>
+                      </div>
+                  </div>
+              </div>
+
+              <div data-aos="fade-up" data-aos-duration="1000" data-aos-delay="300">
+                  <div class="box">
+                      <div class="image fit">
+                          <!-- 使用一个通用的图片作为 OS 模拟器占位符 -->
+                          <img src="images/slide04.jpg" alt="Coding/OS Placeholder" width="600" height="300">
+                      </div>
+                      <div class="content">
+                          <header>
+                              <h2>探索Tailwind OS</h2>
+                          </header>
+                          <p>体验我基于网页技术开发的操作系统模拟器。一个用现代前端技术构建的创新型互动项目。</p>
+                          <!-- 链接已更新为 generic.html -->
+                          <footer><a href="generic.html" class="button alt">开始体验</a></footer>
+                      </div>
+                  </div>
+              </div>
+              
+              <!-- 新增项目 4: 强基一班官网 -->
+              <div data-aos="fade-up" data-aos-duration="1000" data-aos-delay="400">
+                  <div class="box">
+                      <div class="image fit">
+                          <!-- 使用一个通用的图片作为官网占位符 -->
+                          <img src="images/pic04.jpg" alt="Qiangji Class 1 Website Placeholder" width="600" height="300">
+                      </div>
+                      <div class="content">
+                          <header>
+                              <h2>探索强基一班官网</h2>
+                          </header>
+                          <p>强基一班的官方网站，展示了班级的风采、重要通知和活动记录。点击探索我们的社区。</p>
+                          <!-- 重新添加 target="_blank" 以在新窗口打开 -->
+                          <footer><a href="https://yiban.space" target="_blank" class="button alt">进入官网</a></footer>
+                      </div>
+                  </div>
+              </div>
+
+              <!-- 新增项目 5: 升旗快报生成器 -->
+              <div data-aos="fade-up" data-aos-duration="1000" data-aos-delay="500">
+                  <div class="box">
+                      <div class="image fit">
+                          <!-- 使用一个通用的图片作为生成器占位符 -->
+                          <img src="images/slide03.jpg" alt="Flag Raising Express Generator Placeholder" width="600" height="300">
+                      </div>
+                      <div class="content">
+                          <header>
+                              <h2>升旗快报生成器（信息技术部）</h2>
+                          </header>
+                          <p>由信息技术部开发，快速生成标准格式的升旗快报。提高效率，简化流程。</p>
+                          <footer><a href="elements.html" class="button alt">开始尝试</a></footer>
+                      </div>
+                  </div>
+              </div>
+
+          </div>
+      </div>
+  </section>
+
+  <!-- Footer (使用简单的 fade-in 效果) -->
+  <footer id="footer" data-aos="fade-in" data-aos-duration="1000">
+    <div class="container">
+      <ul class="icons">
+        <li><a href="#" class="icon fa-twitter"><span class="label">Twitter</span></a></li>
+        <li><a href="#" class="icon fa-facebook"><span class="label">Facebook</span></a></li>
+        <li><a href="#" class="icon fa-instagram"><span class="label">Instagram</span></a></li>
+        <li><a href="#" class="icon fa-envelope-o"><span class="label">Email</span></a></li>
+      </ul>
+    </div>
+  </footer>
+  <div class="copyright" data-aos="fade-in" data-aos-duration="1000">
+    Made with <a href="https://templated.live/">Templated</a> Distributed by <a href="https://themewagon.com/">ThemeWagon</a>.
+  </div>
+
+  <!-- Custom Modal for VPN Notice (VPN通知自定义弹窗) -->
+  <div id="vpn-notice-modal" class="modal-overlay">
+      <div class="modal-content">
+          <span class="modal-close">&times;</span>
+          <header class="align-center">
+              <h2>服务暂停通知</h2>
+          </header>
+          <p class="align-center">JHCWColin VPN已于2025年8月15日暂时停服。感谢您的理解和支持。</p>
+          <div class="align-center" style="margin-top: 2em;">
+              <button class="button alt modal-close-btn">关闭</button>
+          </div>
+      </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="assets/js/jquery.min.js"></script>
+  <script src="assets/js/jquery.scrollex.min.js"></script>
+  <script src="assets/js/skel.min.js"></script>
+  <script src="assets/js/util.js"></script>
+  <script src="assets/js/main.js"></script>
+
+  <!-- 引入 AOS.js 的 JavaScript 文件 (已改为本地路径，确保离线可用) -->
+  <script src="assets/js/aos.js"></script>
+  
+  <script>
+    // 初始化 AOS.js
+    AOS.init({
+        // 只在向下滚动时触发一次动画
+        once: true,
+        // 动画持续时间
+        duration: 1000, 
+    });
+
+    // --- Custom Modal Logic for VPN Notice (自定义弹窗逻辑) ---
+    document.addEventListener('DOMContentLoaded', () => {
+        const modal = document.getElementById('vpn-notice-modal');
+        const vpnButton = document.getElementById('vpn-button');
+        
+        // 获取所有关闭按钮 (包括右上角的 'x' 和底部的 '关闭' 按钮)
+        const closeButtons = modal.querySelectorAll('.modal-close, .modal-close-btn');
+
+        if (vpnButton && modal) {
+            // Function to open the modal on button click
+            vpnButton.onclick = function(e) {
+                e.preventDefault(); // Prevent default action (like scrolling to top)
+                modal.style.display = 'flex'; // Use flex to help center the content
+            }
+
+            // Function to close the modal (for X and Close button)
+            closeButtons.forEach(btn => {
+                btn.onclick = function() {
+                    modal.style.display = 'none';
+                }
+            });
+
+            // Close the modal if user clicks outside of it
+            window.onclick = function(event) {
+                if (event.target === modal) {
+                    modal.style.display = 'none';
+                }
+            }
+        }
+    });
+    // --- End Custom Modal Logic ---
+  </script>
+
+</body>
+</html>

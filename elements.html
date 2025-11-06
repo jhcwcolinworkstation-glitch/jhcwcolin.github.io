@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>升旗快报生成器</title>
+    <meta http-equiv="Content-Security-Policy" content="img-src 'self' data: blob: https:">
+    <script src="assets/js/tailwind.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            transition: background-color 0.3s ease, background-image 0.3s ease;
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+            background-repeat: no-repeat;
+        }
+        .container {
+            max-width: 1024px;
+            transition: background-color 0.3s ease;
+        }
+        canvas {
+            border: 2px solid #e5e7eb;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            background-color: white;
+            border-radius: 12px;
+        }
+        .input-group input, .input-group textarea, .input-group button {
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid #d1d5db;
+            transition: all 0.2s ease-in-out;
+        }
+        .input-group input:focus, .input-group textarea:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+        }
+        .crop-modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            justify-content: center;
+            align-items: center;
+        }
+        .crop-container {
+            position: relative;
+            background-color: #fff;
+            padding: 24px;
+            border-radius: 12px;
+            box-shadow: 0 10px 15px rgba(0, 0, 0, 0.2);
+            width: 900px;
+            height: 600px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .crop-canvas-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            border-radius: 8px;
+        }
+        .cropper-view-box {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            border-radius: 8px;
+        }
+        .cropper-selection {
+            position: absolute;
+            border: 2px dashed #fff;
+            box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5);
+            pointer-events: none;
+        }
+
+        /* Dark Mode Specific Styles */
+        html[data-mode='light'] .container {
+            background-color: rgba(255, 255, 255, 0.7);
+        }
+        html[data-mode='light'] body {
+            background-image: url('light.JPG');
+        }
+
+        html[data-mode='dark'] {
+            color: #e2e8f0;
+        }
+        html[data-mode='dark'] .container {
+            background-color: rgba(45, 55, 72, 0.7);
+            color: #e2e8f0;
+        }
+        html[data-mode='dark'] body {
+            background-image: url('background.JPG');
+        }
+        html[data-mode='dark'] .input-group label, html[data-mode='dark'] .text-gray-600 {
+            color: #a0aec0;
+        }
+        html[data-mode='dark'] .input-group input, html[data-mode='dark'] .input-group textarea {
+            background-color: #4a5568;
+            border-color: #4a5568;
+            color: #e2e8f0;
+        }
+        html[data-mode='dark'] .text-gray-500 {
+            color: #cbd5e0;
+        }
+        html[data-mode='dark'] .text-gray-800 {
+            color: #e2e8f0;
+        }
+    </style>
+</head>
+<body class="p-8 flex flex-col items-center min-h-screen">
+
+    <div class="container rounded-2xl p-6 shadow-xl text-center mb-8">
+        <p class="text-sm text-gray-800">V1.1(build2509070908)更新内容：1、修复了图片异常拉伸的bug。 2、文字输入区域可以回车换行。 3、js代码混淆。</p>
+    </div>
+
+    <div class="container rounded-2xl p-6 shadow-xl flex flex-col md:flex-row gap-8 relative">
+        <button id="themeToggleBtn" class="absolute top-4 left-4 p-2 rounded-full text-gray-600 hover:bg-gray-200 focus:outline-none transition-colors duration-300">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+            </svg>
+        </button>
+
+        <div class="md:w-3/5 w-full flex-shrink-0 flex justify-center items-center p-4">
+            <canvas id="flagBulletinCanvas" class="w-full h-auto rounded-xl"></canvas>
+        </div>
+
+        <div class="md:w-2/5 w-full flex flex-col gap-6">
+            <h1 class="text-3xl font-bold text-center text-gray-800">升旗快报生成器</h1>
+            <p class="text-sm text-gray-500 text-center">输入文字并上传图片，自动生成升旗快报。</p>
+            
+            <div class="input-group flex flex-col gap-4">
+                <label for="text1" class="text-gray-600 font-semibold">周序数</label>
+                <input type="text" id="text1" placeholder="请输入一个阿拉伯整数。（≤99）" class="w-full rounded-lg">
+                
+                <label for="text2" class="text-gray-600 font-semibold">班级介绍</label>
+                <textarea id="text2" placeholder="输入班级介绍。例如：高一一班是一个奇怪的班集体。" rows="4" class="w-full rounded-lg"></textarea>
+
+                <label for="text3" class="text-gray-600 font-semibold">人员信息</label>
+                <textarea id="text3" placeholder="主持人 XXX
+旗手 XXX
+护旗手 XXX、XXX及高XX班全体同学
+发言人 XXX" rows="4" class="w-full rounded-lg"></textarea>
+            </div>
+
+            <div class="input-group">
+                <label class="block text-gray-600 font-semibold mb-2">上传图片</label>
+                <input type="file" id="imageInput" accept="image/*" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer">
+            </div>
+
+            <button id="saveImageBtn" class="mt-4 px-6 py-3 bg-green-500 text-white font-semibold rounded-lg shadow-md hover:bg-green-600 transition">请右键图片将图片保存到本地。</button>
+        </div>
+    </div>
+
+    <div class="container rounded-2xl p-6 shadow-xl mt-8 flex flex-col items-center">
+        <h2 class="text-2xl font-bold text-gray-800 mb-4">原作者：JHCWColin王景弘</h2>
+        <div class="flex flex-col items-center gap-4 text-gray-700">
+            <p class="text-gray-600 text-center max-w-2xl">
+                青岛五十八中信息技术部出品，必属精品！<br>
+                如果对此有改进建议，请通过以下方式联系我。
+            </p>
+            <p>邮箱是jhcwcolin@gmail.com</p>
+            <img src="sticker.PNG" alt="sticker" class="max-w-xs rounded-lg shadow-md">
+        </div>
+    </div>
+
+    <div id="cropModal" class="crop-modal">
+        <div class="crop-container">
+            <h2 class="text-2xl font-bold mb-4">裁剪图片 (16:9 比例)</h2>
+            <div class="crop-canvas-container flex-grow w-full h-full overflow-hidden rounded-lg">
+                <canvas id="cropCanvas" class="w-full h-full"></canvas>
+            </div>
+            <button id="confirmCropBtn" class="mt-4 px-6 py-2 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 transition">确定</button>
+        </div>
+    </div>
+
+    <script>
+const _0x4a3da1=_0x13ce;(function(_0xdfc93f,_0x3d19e0){const _0x539e96=_0x13ce,_0x3be4c0=_0xdfc93f();while(!![]){try{const _0x565713=parseInt(_0x539e96(0x12b))/0x1+parseInt(_0x539e96(0x14f))/0x2+parseInt(_0x539e96(0x143))/0x3*(parseInt(_0x539e96(0x10b))/0x4)+parseInt(_0x539e96(0x11d))/0x5*(parseInt(_0x539e96(0x13c))/0x6)+parseInt(_0x539e96(0x113))/0x7*(-parseInt(_0x539e96(0x152))/0x8)+parseInt(_0x539e96(0x13e))/0x9*(-parseInt(_0x539e96(0x11b))/0xa)+-parseInt(_0x539e96(0x147))/0xb*(parseInt(_0x539e96(0x116))/0xc);if(_0x565713===_0x3d19e0)break;else _0x3be4c0['push'](_0x3be4c0['shift']());}catch(_0x513511){_0x3be4c0['push'](_0x3be4c0['shift']());}}}(_0x9c74,0x25125));const canvas=document[_0x4a3da1(0x118)](_0x4a3da1(0x10f)),ctx=canvas[_0x4a3da1(0xfa)]('2d'),text1Input=document[_0x4a3da1(0x118)](_0x4a3da1(0x115)),text2Input=document[_0x4a3da1(0x118)](_0x4a3da1(0x153)),text3Input=document['getElementById'](_0x4a3da1(0x108)),imageInput=document['getElementById']('imageInput'),cropModal=document['getElementById'](_0x4a3da1(0x102)),cropCanvas=document[_0x4a3da1(0x118)](_0x4a3da1(0x125)),cropCtx=cropCanvas[_0x4a3da1(0xfa)]('2d'),confirmCropBtn=document['getElementById']('confirmCropBtn'),saveImageBtn=document[_0x4a3da1(0x118)](_0x4a3da1(0x112)),themeToggleBtn=document[_0x4a3da1(0x118)]('themeToggleBtn'),htmlElement=document[_0x4a3da1(0x14b)],savedTheme=localStorage[_0x4a3da1(0x11e)]('theme');savedTheme?htmlElement[_0x4a3da1(0x136)](_0x4a3da1(0x12e),savedTheme):htmlElement['setAttribute'](_0x4a3da1(0x12e),_0x4a3da1(0x12c));themeToggleBtn[_0x4a3da1(0x106)]('click',()=>{const _0x4ba5f9=_0x4a3da1,_0x27a597=htmlElement['getAttribute'](_0x4ba5f9(0x12e)),_0x2f995f=_0x27a597===_0x4ba5f9(0x12c)?_0x4ba5f9(0x13b):_0x4ba5f9(0x12c);htmlElement[_0x4ba5f9(0x136)](_0x4ba5f9(0x12e),_0x2f995f),localStorage['setItem'](_0x4ba5f9(0x121),_0x2f995f),updateThemeButton(_0x2f995f);});function updateThemeButton(_0x2d1af9){const _0x5c7e78=_0x4a3da1;_0x2d1af9==='dark'?themeToggleBtn[_0x5c7e78(0x11f)]=_0x5c7e78(0x114):themeToggleBtn['innerHTML']=_0x5c7e78(0x100);}updateThemeButton(htmlElement[_0x4a3da1(0x150)](_0x4a3da1(0x12e)));const BULLETIN_WIDTH=0x4a7,BULLETIN_HEIGHT=0x34a,CROP_RATIO=0x10/0x9,HANDLE_SIZE=0xc,HIT_AREA=0xf,USER_IMAGE_WIDTH=0x1db,USER_IMAGE_HEIGHT=USER_IMAGE_WIDTH/CROP_RATIO,TARGET_X=0x24e,TARGET_Y=0x73;let backgroundImage=new Image(),userImage=null,cropX,cropY,cropWidth,cropHeight,cropImageOriginal=new Image(),isDragging=![],isResizing=![],dragCorner='',startX,startY;function setBackgroundImage(){const _0x2e6f0a=_0x4a3da1,_0x1b2963=htmlElement['getAttribute']('data-mode');_0x1b2963===_0x2e6f0a(0x12c)?backgroundImage[_0x2e6f0a(0x105)]=_0x2e6f0a(0x11a):backgroundImage['src']=_0x2e6f0a(0x11a);}function _0x13ce(_0x547ac6,_0x259f76){const _0x9c7419=_0x9c74();return _0x13ce=function(_0x13ce36,_0x19ec49){_0x13ce36=_0x13ce36-0xf8;let _0x27a790=_0x9c7419[_0x13ce36];return _0x27a790;},_0x13ce(_0x547ac6,_0x259f76);}canvas['width']=BULLETIN_WIDTH,canvas[_0x4a3da1(0x120)]=BULLETIN_HEIGHT;function convertNumberToChinese(_0x12bbb2){const _0xb16d99=_0x4a3da1,_0x5c0646=parseInt(_0x12bbb2,0xa);if(isNaN(_0x5c0646)||_0x5c0646<0x0||_0x5c0646>0x63)return _0x12bbb2;const _0x124901=['零','一','二','三','四','五','六','七','八','九'];if(_0x5c0646<0xa)return _0x124901[_0x5c0646];if(_0x5c0646===0xa)return'十';if(_0x5c0646<0x14)return'十'+_0x124901[_0x5c0646%0xa];if(_0x5c0646%0xa===0x0)return _0x124901[Math[_0xb16d99(0xfe)](_0x5c0646/0xa)]+'十';return _0x124901[Math[_0xb16d99(0xfe)](_0x5c0646/0xa)]+'十'+_0x124901[_0x5c0646%0xa];}function drawText(_0x1ccc8a,_0x3cb3d7,_0x36fd84,_0x58d9a8,_0x1276d7,_0x300706){const _0x3b28de=_0x4a3da1,_0x588705=_0x3cb3d7['split']('\x0a');let _0x4004fc=_0x58d9a8;for(const _0x257f47 of _0x588705){let _0x11600b='';const _0x556afb=_0x257f47['split']('');for(let _0x449856=0x0;_0x449856<_0x556afb[_0x3b28de(0x14e)];_0x449856++){const _0x537000=_0x11600b+_0x556afb[_0x449856],_0x2e01ad=_0x1ccc8a[_0x3b28de(0x14d)](_0x537000)[_0x3b28de(0x140)];_0x2e01ad>_0x1276d7&&_0x11600b[_0x3b28de(0x14e)]>0x0?(_0x1ccc8a[_0x3b28de(0x138)](_0x11600b,_0x36fd84,_0x4004fc),_0x11600b=_0x556afb[_0x449856],_0x4004fc+=_0x300706):_0x11600b=_0x537000;}_0x1ccc8a['fillText'](_0x11600b,_0x36fd84,_0x4004fc),_0x4004fc+=_0x300706;}}function drawCanvas(){const _0x210199=_0x4a3da1;ctx['clearRect'](0x0,0x0,canvas[_0x210199(0x140)],canvas[_0x210199(0x120)]);const _0x49bb98=backgroundImage[_0x210199(0x140)]/backgroundImage[_0x210199(0x120)],_0xb89ec7=canvas[_0x210199(0x140)]/canvas[_0x210199(0x120)];let _0x37f284,_0x4553d0,_0x16e58d,_0x804392;_0x49bb98>_0xb89ec7?(_0x4553d0=canvas[_0x210199(0x120)],_0x37f284=_0x4553d0*_0x49bb98,_0x16e58d=(canvas[_0x210199(0x140)]-_0x37f284)/0x2,_0x804392=0x0):(_0x37f284=canvas[_0x210199(0x140)],_0x4553d0=_0x37f284/_0x49bb98,_0x16e58d=0x0,_0x804392=(canvas[_0x210199(0x120)]-_0x4553d0)/0x2);ctx[_0x210199(0x119)](backgroundImage,_0x16e58d,_0x804392,_0x37f284,_0x4553d0);userImage&&ctx['drawImage'](userImage,TARGET_X,TARGET_Y,USER_IMAGE_WIDTH,USER_IMAGE_HEIGHT);const _0xac9b83=text1Input[_0x210199(0x135)],_0x2f382c=convertNumberToChinese(_0xac9b83),_0x4c8b84='第'+_0x2f382c+'周';ctx[_0x210199(0x12d)]=_0x210199(0xf9),ctx[_0x210199(0xfb)]='bold\x2040px\x20sans-serif',ctx[_0x210199(0x10d)]='left',ctx[_0x210199(0x138)](_0x4c8b84,0x40,0x15a);const _0x1d17ac=text2Input[_0x210199(0x135)];ctx[_0x210199(0x12d)]=_0x210199(0xf9),ctx[_0x210199(0xfb)]='20px\x20sans-serif',ctx[_0x210199(0x10d)]=_0x210199(0x12a);const _0x45f092=0x258,_0x31d3bf=0x1d9,_0x30d5a1=0x1c7,_0x14791a=0x28;drawText(ctx,_0x1d17ac,_0x45f092,_0x31d3bf,_0x30d5a1,_0x14791a);const _0x21f7f1=text3Input[_0x210199(0x135)];ctx[_0x210199(0x12d)]=_0x210199(0xf9),ctx[_0x210199(0xfb)]=_0x210199(0x129),ctx[_0x210199(0x10d)]=_0x210199(0x12a);const _0x5dbf47=0x40;let _0x4da22c=0x230;const _0x1c9e74=0x168,_0x1ce1dd=0x1e;drawText(ctx,_0x21f7f1,_0x5dbf47,_0x4da22c,_0x1c9e74,_0x1ce1dd);}function drawCropInterface(){const _0x1dbde2=_0x4a3da1;if(cropCanvas[_0x1dbde2(0x12f)]===0x0||cropCanvas[_0x1dbde2(0x154)]===0x0){setTimeout(drawCropInterface,0x32);return;}cropCanvas[_0x1dbde2(0x140)]=cropCanvas['offsetWidth'],cropCanvas[_0x1dbde2(0x120)]=cropCanvas[_0x1dbde2(0x154)];const _0x662a93=cropImageOriginal['width']/cropImageOriginal[_0x1dbde2(0x120)],_0x2690dd=cropCanvas[_0x1dbde2(0x140)]/cropCanvas[_0x1dbde2(0x120)];let _0x12c8b1,_0x254b29,_0x2a07bc=0x0,_0x478cd9=0x0;_0x662a93>_0x2690dd?(_0x254b29=cropCanvas[_0x1dbde2(0x120)],_0x12c8b1=_0x254b29*_0x662a93,_0x2a07bc=(cropCanvas[_0x1dbde2(0x140)]-_0x12c8b1)/0x2):(_0x12c8b1=cropCanvas[_0x1dbde2(0x140)],_0x254b29=_0x12c8b1/_0x662a93,_0x478cd9=(cropCanvas[_0x1dbde2(0x120)]-_0x254b29)/0x2);cropCtx['drawImage'](cropImageOriginal,_0x2a07bc,_0x478cd9,_0x12c8b1,_0x254b29);let _0x4f96e5,_0x19f36a;_0x12c8b1/_0x254b29>CROP_RATIO?(_0x19f36a=_0x254b29,_0x4f96e5=_0x254b29*CROP_RATIO):(_0x4f96e5=_0x12c8b1,_0x19f36a=_0x12c8b1/CROP_RATIO);(!cropWidth||!cropHeight)&&(cropWidth=_0x4f96e5,cropHeight=_0x19f36a,cropX=(cropCanvas[_0x1dbde2(0x140)]-cropWidth)/0x2,cropY=(cropCanvas[_0x1dbde2(0x120)]-cropHeight)/0x2);cropCtx[_0x1dbde2(0x12d)]=_0x1dbde2(0x137),cropCtx[_0x1dbde2(0x131)](0x0,0x0,cropX,cropCanvas[_0x1dbde2(0x120)]),cropCtx[_0x1dbde2(0x131)](cropX+cropWidth,0x0,cropCanvas['width']-(cropX+cropWidth),cropCanvas[_0x1dbde2(0x120)]),cropCtx[_0x1dbde2(0x131)](cropX,0x0,cropWidth,cropY),cropCtx[_0x1dbde2(0x131)](cropX,cropY+cropHeight,cropWidth,cropCanvas['height']-(cropY+cropHeight)),cropCtx[_0x1dbde2(0x126)]=_0x1dbde2(0x144),cropCtx[_0x1dbde2(0xfd)]=0x2,cropCtx[_0x1dbde2(0x10a)](cropX,cropY,cropWidth,cropHeight),cropCtx['fillStyle']=_0x1dbde2(0x144);const _0x54cd74=[{'x':cropX,'y':cropY},{'x':cropX+cropWidth,'y':cropY},{'x':cropX,'y':cropY+cropHeight},{'x':x+cropWidth,'y':cropY+cropHeight}];_0x54cd74['forEach'](_0x30d60a=>{const _0x253e0e=_0x1dbde2;cropCtx[_0x253e0e(0x14c)](),cropCtx[_0x253e0e(0x101)](_0x30d60a['x'],_0x30d60a['y'],HANDLE_SIZE/0x2,0x0,0x2*Math['PI']),cropCtx[_0x253e0e(0x134)]();});}function isNearHandle(_0x4e8271,_0x50e50c){const _0x405bcb=_0x4a3da1;if(Math[_0x405bcb(0x107)](_0x4e8271-cropX,_0x50e50c-cropY)<HIT_AREA)return _0x405bcb(0x104);if(Math[_0x405bcb(0x107)](_0x4e8271-(cropX+cropWidth),_0x50e50c-cropY)<HIT_AREA)return _0x405bcb(0x111);if(Math[_0x405bcb(0x107)](_0x4e8271-cropX,_0x50e50c-(cropY+cropHeight))<HIT_AREA)return _0x405bcb(0x133);if(Math[_0x405bcb(0x107)](_0x4e8271-(cropX+cropWidth),_0x50e50c-(cropY+cropHeight))<HIT_AREA)return'bottomRight';return'';}cropCanvas[_0x4a3da1(0x106)](_0x4a3da1(0x123),_0x13914b=>{const _0xacc44=_0x4a3da1;startX=_0x13914b['offsetX'],startY=_0x13914b[_0xacc44(0x146)],dragCorner=isNearHandle(startX,startY);if(dragCorner)isResizing=!![];else startX>cropX&&startX<cropX+cropWidth&&startY>cropY&&startY<cropY+cropHeight&&(isDragging=!![]);}),cropCanvas[_0x4a3da1(0x106)](_0x4a3da1(0xf8),_0x5e7c2c=>{const _0x3a5f64=_0x4a3da1,_0x46ad2b=_0x5e7c2c[_0x3a5f64(0x130)]-startX,_0x59cc50=_0x5e7c2c[_0x3a5f64(0x146)]-startY;if(isResizing){let _0x459c89,_0x19c680,_0x2588ca=cropX,_0x1a9cbd=cropY;switch(dragCorner){case _0x3a5f64(0x104):_0x459c89=cropWidth-_0x46ad2b,_0x19c680=_0x459c89/CROP_RATIO,_0x2588ca=cropX+_0x46ad2b,_0x1a9cbd=cropY+(cropHeight-_0x19c680);break;case _0x3a5f64(0x111):_0x459c89=cropWidth+_0x46ad2b,_0x19c680=_0x459c89/CROP_RATIO,_0x1a9cbd=cropY+(cropHeight-_0x19c680);break;case _0x3a5f64(0x133):_0x459c89=cropWidth-_0x46ad2b,_0x19c680=_0x459c89/CROP_RATIO,_0x2588ca=cropX+_0x46ad2b;break;case'bottomRight':_0x459c89=cropWidth+_0x46ad2b,_0x19c680=_0x459c89/CROP_RATIO;break;}_0x459c89>0x32&&_0x19c680>0x32&&(cropWidth=_0x459c89,cropHeight=_0x19c680,cropX=_0x2588ca,cropY=_0x1a9cbd),drawCropInterface();}else{if(isDragging)cropX+=_0x46ad2b,cropY+=_0x59cc50,cropX=Math[_0x3a5f64(0x124)](0x0,Math[_0x3a5f64(0x148)](cropX,cropCanvas[_0x3a5f64(0x140)]-cropWidth)),cropY=Math[_0x3a5f64(0x124)](0x0,Math[_0x3a5f64(0x148)](cropY,cropCanvas['height']-cropHeight)),drawCropInterface();else{const _0x214a14=isNearHandle(_0x5e7c2c['offsetX'],_0x5e7c2c[_0x3a5f64(0x146)]);if(_0x214a14==='topLeft'||_0x214a14===_0x3a5f64(0xff))cropCanvas[_0x3a5f64(0x151)][_0x3a5f64(0x13f)]=_0x3a5f64(0x110);else{if(_0x214a14===_0x3a5f64(0x111)||_0x214a14===_0x3a5f64(0x133))cropCanvas[_0x3a5f64(0x151)][_0x3a5f64(0x13f)]=_0x3a5f64(0x10c);else _0x5e7c2c[_0x3a5f64(0x130)]>cropX&&_0x5e7c2c[_0x3a5f64(0x130)]<cropX+cropWidth&&_0x5e7c2c[_0x3a5f64(0x146)]>cropY&&_0x5e7c2c[_0x3a5f64(0x146)]<cropY+cropHeight?cropCanvas[_0x3a5f64(0x151)][_0x3a5f64(0x13f)]=_0x3a5f64(0x128):cropCanvas[_0x3a5f64(0x151)][_0x3a5f64(0x13f)]='default';}}}startX=_0x5e7c2c[_0x3a5f64(0x130)],startY=_0x5e7c2c[_0x3a5f64(0x146)];}),cropCanvas[_0x4a3da1(0x106)](_0x4a3da1(0x14a),()=>{isDragging=![],isResizing=![],dragCorner='';}),imageInput[_0x4a3da1(0x106)](_0x4a3da1(0x145),_0x5edc65=>{const _0x5bc6fa=_0x4a3da1,_0x5cc16f=_0x5edc65[_0x5bc6fa(0x127)][_0x5bc6fa(0x149)][0x0];if(!_0x5cc16f)return;const _0x1eacad=new FileReader();_0x1eacad[_0x5bc6fa(0x142)]=_0x3840f8=>{const _0x5f3f58=_0x5bc6fa;cropImageOriginal['onload']=()=>{const _0x154938=_0x13ce;cropX=0x0,cropY=0x0,cropWidth=0x0,cropHeight=0x0,cropModal[_0x154938(0x151)]['display']=_0x154938(0x141),setTimeout(drawCropInterface,0x32);},cropImageOriginal[_0x5f3f58(0x105)]=_0x3840f8[_0x5f3f58(0x127)][_0x5f3f58(0xfc)];},_0x1eacad['readAsDataURL'](_0x5cc16f);}),confirmCropBtn[_0x4a3da1(0x106)](_0x4a3da1(0x139),()=>{const _0x240608=_0x4a3da1,_0x16d09c=cropImageOriginal[_0x240608(0x140)]/cropImageOriginal[_0x240608(0x120)],_0x50ef42=cropCanvas[_0x240608(0x140)]/cropCanvas[_0x240608(0x120)];let _0x3b1eda,_0x4ce974,_0x2f52a7=0x0,_0x43d562=0x0;_0x16d09c>_0x50ef42?(_0x4ce974=cropCanvas[_0x240608(0x120)],_0x3b1eda=_0x4ce974*_0x16d09c,_0x2f52a7=(cropCanvas[_0x240608(0x140)]-_0x3b1eda)/0x2):(_0x3b1eda=cropCanvas[_0x240608(0x140)],_0x4ce974=_0x3b1eda/_0x16d09c,_0x43d562=(cropCanvas['height']-_0x4ce974)/0x2);const _0xef4e63=(cropX-_0x2f52a7)*(cropImageOriginal[_0x240608(0x140)]/_0x3b1eda),_0x554cd7=(cropY-_0x43d562)*(cropImageOriginal[_0x240608(0x120)]/_0x4ce974),_0x919a74=cropWidth*(cropImageOriginal[_0x240608(0x140)]/_0x3b1eda),_0x37836e=cropHeight*(cropImageOriginal[_0x240608(0x120)]/_0x4ce974),_0x41ebb1=document[_0x240608(0x11c)]('canvas');_0x41ebb1['width']=USER_IMAGE_WIDTH,_0x41ebb1['height']=USER_IMAGE_HEIGHT;const _0x3b34d5=_0x41ebb1['getContext']('2d');_0x3b34d5[_0x240608(0x119)](cropImageOriginal,_0xef4e63,_0x554cd7,_0x919a74,_0x37836e,0x0,0x0,USER_IMAGE_WIDTH,USER_IMAGE_HEIGHT),userImage=new Image(),userImage['src']=_0x41ebb1[_0x240608(0x109)](),cropModal[_0x240608(0x151)][_0x240608(0x103)]='none',userImage[_0x240608(0x142)]=()=>{drawCanvas();};}),saveImageBtn['addEventListener'](_0x4a3da1(0x139),()=>{const _0x46dbda=_0x4a3da1,_0x1d5fb2=document['createElement']('a');_0x1d5fb2['download']='升旗快报.png',_0x1d5fb2[_0x46dbda(0x10e)]=canvas['toDataURL']('image/png'),_0x1d5fb2[_0x46dbda(0x139)](),_0x1d5fb2[_0x46dbda(0x122)]();}),text1Input['addEventListener']('input',drawCanvas),text2Input[_0x4a3da1(0x106)]('input',drawCanvas),text3Input['addEventListener'](_0x4a3da1(0x13a),drawCanvas),backgroundImage[_0x4a3da1(0x142)]=()=>{drawCanvas();},htmlElement[_0x4a3da1(0x106)](_0x4a3da1(0x132),_0x106f27=>{const _0x386bdc=_0x4a3da1;_0x106f27[_0x386bdc(0x117)]===_0x386bdc(0x13d)&&setBackgroundImage();}),setBackgroundImage();function _0x9c74(){const _0x44980f=['createElement','1494905VNCYUq','getItem','innerHTML','height','theme','remove','mousedown','max','cropCanvas','strokeStyle','target','move','20px\x20sans-serif','left','89359wmZfyn','light','fillStyle','data-mode','offsetWidth','offsetX','fillRect','transitionend','bottomLeft','fill','value','setAttribute','rgba(0,\x200,\x200,\x200.5)','fillText','click','input','dark','6moZtOC','color','432bBGrKc','cursor','width','flex','onload','615099FdaOOz','white','change','offsetY','66tsiWxG','min','files','mouseup','documentElement','beginPath','measureText','length','542764xKMMds','getAttribute','style','688CWeTVJ','text2','offsetHeight','mousemove','#FFFFFF','getContext','font','result','lineWidth','floor','bottomRight','\x0a\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20<svg\x20xmlns=\x22http://www.w3.org/2000/svg\x22\x20class=\x22h-6\x20w-6\x22\x20fill=\x22none\x22\x20viewBox=\x220\x200\x2024\x2024\x22\x20stroke=\x22currentColor\x22>\x0a\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20<path\x20stroke-linecap=\x22round\x22\x20stroke-linejoin=\x22round\x22\x20stroke-width=\x222\x22\x20d=\x22M20.354\x2015.354A9\x209\x200\x20018.646\x203.646\x209.003\x209.003\x200\x200012\x2021a9.003\x209.003\x200\x20008.354-5.646z\x22\x20/>\x0a\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20</svg>\x0a\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20','arc','cropModal','display','topLeft','src','addEventListener','hypot','text3','toDataURL','strokeRect','4qXSeLJ','nesw-resize','textAlign','href','flagBulletinCanvas','nwse-resize','topRight','saveImageBtn','20314CjFCLZ','\x0a\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20<svg\x20xmlns=\x22http://www.w3.org/2000/svg\x22\x20class=\x22h-6\x20w-6\x22\x20fill=\x22none\x22\x20viewBox=\x220\x200\x2024\x2024\x22\x20stroke=\x22currentColor\x22>\x0a\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20<path\x20stroke-linecap=\x22round\x22\x20stroke-linejoin=\x22round\x22\x20stroke-width=\x222\x22\x20d=\x22M12\x203v1m0\x2016v1m9-9h-1M4\x2012H3m15.364\x206.364l-.707-.707M6.343\x206.343l-.707-.707m12.728\x200l-.707.707M6.343\x2017.657l-.707.707M16\x2012a4\x204\x200\x2011-8\x200\x204\x204\x200\x20018\x200z\x22\x20/>\x0a\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20</svg>\x0a\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20','text1','537588kiztYB','propertyName','getElementById','drawImage','1.PNG','40530ilVYDc'];_0x9c74=function(){return _0x44980f;};return _0x9c74();}
+            </script>
+</body>
+</html>

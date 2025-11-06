@@ -1,0 +1,1901 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>现代操作系统模拟 (Aero)</title>
+    <!-- 引入 Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      // Tailwind CSS 配置，设置 Inter 字体
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: {
+              // 默认使用 Inter 字体
+              sans: ['Inter', 'sans-serif'],
+            },
+            colors: {
+                // 定义一个现代主题色
+                'accent': '#3b82f6', // blue-500
+                'surface-dark': '#1e293b', // slate-800
+                'surface-light': '#f8fafc', // slate-50
+            }
+          }
+        }
+      }
+    </script>
+    <!-- 引入 Font Awesome 更好的图标样式 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    
+    <style>
+        /* 全局样式：现代深色模式背景 */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0f172a; /* slate-900 */
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            color: #e2e8f0; /* text-slate-200 */
+        }
+        #desktop {
+            flex-grow: 1;
+            position: relative;
+            display: flex;
+            flex-wrap: wrap;
+            align-content: flex-start;
+            padding: 1.5rem; /* 增加内边距 */
+        }
+        
+        /* === 窗口样式：实现 Aero Glass 效果 === */
+        .window {
+            position: absolute;
+            /* 关键：半透明背景和强高斯模糊 */
+            background-color: rgba(30, 41, 59, 0.6); /* Translucent dark slate */
+            backdrop-filter: blur(16px); /* 强大的玻璃模糊效果 */
+            border-radius: 12px; 
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5); /* 更深的阴影来模拟浮动感 */
+            overflow: hidden;
+            resize: both;
+            min-width: 280px; 
+            min-height: 150px; 
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            border: 1px solid rgba(255, 255, 255, 0.1); /* 浅色描边，增强玻璃高光感 */
+        }
+
+        /* 标题栏样式：使用深色半透明 */
+        .window-title-bar {
+            background-color: rgba(30, 41, 59, 0.8); /* 略微不透明，区分窗口主体 */
+            color: white;
+            padding: 8px 12px;
+            font-weight: 600; 
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: grab;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1); /* 浅色分隔线 */
+            flex-shrink: 0;
+            user-select: none; 
+        }
+        .window-title-bar .window-controls {
+            display: flex;
+            gap: 8px;
+        }
+        
+        /* 窗口控制按钮：圆角，图标化 */
+        .window-title-bar .window-control-button {
+            background-color: transparent;
+            color: #cbd5e1; 
+            width: 24px;
+            height: 24px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 16px;
+            cursor: pointer;
+            line-height: 1;
+            padding: 0;
+            border: none;
+            border-radius: 6px; 
+            transition: background-color 0.15s, color 0.15s;
+        }
+        .window-title-bar .window-control-button:hover {
+            background-color: rgba(255, 255, 255, 0.15); /* 浅色悬停效果 */
+        }
+        .window-title-bar .window-control-button.close-button:hover {
+            background-color: #ef4444; /* red-500 */
+            color: white;
+        }
+
+        /* 窗口内容区：现在改为深色半透明，以匹配Aero主题 */
+        .window-content {
+            color: #e2e8f0; /* Light text color for dark background */
+            flex-grow: 1;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            background-color: rgba(30, 41, 59, 0.4); /* Slightly more transparent dark background for content area */
+        }
+        
+        /* 适应深色窗口内容区的应用内元素 */
+        
+        /* 记事本输入框 */
+        .window-content [data-app-type="notepad-textarea"] {
+            background-color: rgba(255, 255, 255, 0.05); /* Very slight white background */
+            color: #e2e8f0; /* Light text */
+            border-color: rgba(255, 255, 255, 0.2);
+            /* Remove tailwind focus rings which assume light background */
+            --tw-ring-color: #3b82f6;
+        }
+        
+        /* 设置、任务管理器、资源管理器的内部容器 */
+        .window-content .bg-white {
+            background-color: transparent; /* 移除内部固定的白色背景 */
+        }
+        .window-content .text-gray-500, .window-content .text-gray-600, .window-content .text-gray-700, .window-content .text-gray-800 {
+            color: #cbd5e1; /* 统一浅色文本 */
+        }
+        .window-content .border, .window-content .border-b, .window-content .divide-y {
+            border-color: rgba(255, 255, 255, 0.1); /* 浅色分隔线 */
+        }
+        .window-content .shadow-sm {
+             box-shadow: none; /* 移除在深色背景上不明显的浅色阴影 */
+        }
+
+        /* 浏览器地址栏/iframe */
+        .window-content #browser-address-bar {
+            background-color: rgba(30, 41, 59, 0.8);
+            color: white;
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+        .window-content .bg-gray-50 {
+            background-color: rgba(30, 41, 59, 0.8);
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+        .window-content #browser-iframe {
+            background-color: white; /* Iframe must be opaque and white for website display */
+        }
+
+        /* 资源管理器特定样式 */
+        .explorer-path-bar {
+            background-color: rgba(30, 41, 59, 0.6);
+            color: white;
+        }
+        .explorer-file-list {
+            display: grid;
+            gap: 4px;
+            overflow-y: auto;
+            flex-grow: 1;
+        }
+        .explorer-file-list:not(.details-view) {
+            grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+            grid-auto-rows: 80px;
+        }
+        .explorer-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 4px;
+            border-radius: 6px;
+            cursor: pointer;
+            text-align: center;
+            transition: background-color 0.15s;
+        }
+        .explorer-item:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+        .explorer-item .item-icon {
+            font-size: 24px;
+            color: #3b82f6;
+        }
+        .explorer-item .item-text {
+            font-size: 12px;
+            color: #e2e8f0;
+            word-break: break-word;
+        }
+        
+        /* 资源管理器详细视图 */
+        .explorer-file-list.details-view {
+            display: block;
+            /* Adjust item styles for detailed view */
+        }
+        .explorer-header, .explorer-file-list.details-view .explorer-item {
+            display: flex;
+            align-items: center;
+            padding: 8px 12px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            background-color: transparent;
+        }
+        .explorer-file-list.details-view .explorer-item {
+             flex-direction: row;
+             text-align: left;
+             justify-content: flex-start;
+             gap: 12px;
+        }
+        .explorer-file-list.details-view .explorer-item .item-icon {
+            font-size: 16px;
+            flex-shrink: 0;
+        }
+        .explorer-file-list.details-view .explorer-item .item-text {
+            flex-grow: 1;
+            font-size: 14px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .explorer-header .item-type, .explorer-file-list.details-view .item-type {
+            width: 120px;
+            flex-shrink: 0;
+        }
+        .explorer-header .item-size, .explorer-file-list.details-view .item-size {
+            width: 80px;
+            flex-shrink: 0;
+            text-align: right;
+        }
+        
+        /* 计算器按钮和显示屏 */
+        .calculator #calc-display {
+            background-color: rgba(255, 255, 255, 0.1);
+            color: white;
+            padding: 1rem;
+            font-size: 2rem;
+            border-radius: 8px;
+            border: none;
+        }
+        .calculator .calc-btn {
+            background-color: rgba(255, 255, 255, 0.1);
+            color: white;
+            padding: 12px;
+            font-size: 18px;
+            font-weight: 600;
+            border-radius: 8px;
+            transition: background-color 0.15s;
+        }
+        .calculator .calc-btn:hover {
+            background-color: rgba(255, 255, 255, 0.2);
+        }
+        .calculator .calc-btn[data-value="="] {
+            background-color: #3b82f6; /* Accent color for equals */
+        }
+        .calculator .calc-btn[data-value="="]:hover {
+            background-color: #2563eb;
+        }
+
+        /* 桌面图标样式：现代化，与深色背景对比 */
+        .icon {
+            cursor: pointer;
+            text-align: center;
+            padding: 12px 8px; 
+            margin: 10px;
+            width: 90px; 
+            height: 100px;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start; 
+            align-items: center;
+            border: 1px solid transparent;
+            border-radius: 8px;
+            transition: background-color 0.2s, border-color 0.2s;
+        }
+        .icon:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+        .icon-image {
+            font-size: 36px;
+            margin-bottom: 8px;
+            color: #3b82f6; /* accent color */
+        }
+        .icon-text {
+            font-size: 12px;
+            color: white;
+            word-break: break-word;
+            line-height: 1.2;
+            padding: 0 4px;
+        }
+
+        /* === 任务栏样式：改为居中浮动，固定宽度 === */
+        .taskbar {
+            background-color: rgba(30, 41, 59, 0.75); /* Semi-transparent dark slate */
+            backdrop-filter: blur(18px); /* 增强玻璃模糊效果 */
+            border-radius: 12px; /* 恢复圆角 */
+            height: 50px; 
+            max-width: 500px; /* 限制最大宽度 */
+            width: 90%; /* 允许在小屏幕上响应 */
+            display: flex;
+            align-items: center;
+            padding: 0 8px;
+            box-sizing: border-box;
+            position: fixed; 
+            bottom: 12px; /* 抬离底部 */
+            left: 50%;
+            transform: translateX(-50%); /* 居中 */
+            z-index: 1000; 
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4); /* 阴影 */
+            flex-shrink: 0;
+            border-top: 1px solid rgba(255, 255, 255, 0.05); 
+        }
+        
+        /* 新增：开始按钮样式 */
+        .start-button {
+            display: flex; /* 确保显示 */
+            justify-content: center;
+            align-items: center;
+            height: 100%;
+            width: 50px;
+            font-size: 20px;
+            color: white;
+            background-color: transparent;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.2s, transform 0.1s;
+        }
+        .start-button:hover {
+            background-color: rgba(59, 130, 246, 0.2); /* 蓝色高光 */
+        }
+        .start-button:active {
+            transform: scale(0.95);
+        }
+        
+        .taskbar-clock {
+            color: #94a3b8; 
+            font-size: 14px;
+            font-weight: 500;
+            margin-left: auto; /* 靠右对齐 */
+            padding: 4px 8px;
+            border-radius: 6px;
+            background-color: rgba(51, 65, 85, 0.5); 
+            user-select: none;
+        }
+
+        /* 任务栏应用图标容器 */
+        #taskbar-apps {
+            flex-grow: 1; /* 占据中间所有可用空间 */
+            display: flex;
+            align-items: center;
+            justify-content: flex-start; /* 保持图标从左对齐 */
+            height: 100%;
+            overflow-x: auto;
+            padding: 0 8px;
+            gap: 8px;
+        }
+
+        /* 任务栏应用图标样式 */
+        .taskbar-app-item {
+            background-color: transparent;
+            color: #e2e8f0;
+            font-size: 20px;
+            padding: 8px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            width: 44px; 
+            height: 44px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-sizing: border-box;
+            transition: background-color 0.2s, box-shadow 0.2s, color 0.2s;
+            margin: 0; 
+        }
+        .taskbar-app-item:hover {
+            background-color: rgba(255, 255, 255, 0.15); /* 悬停时的玻璃高光 */
+        }
+        .taskbar-app-item.active {
+            background-color: #3b82f6; /* accent color */
+            color: white;
+            box-shadow: 0 0 10px rgba(59, 130, 246, 0.5); 
+        }
+        
+        /* 模态框样式：保持不透明，确保焦点 (保持不变) */
+        .custom-modal-wrapper {
+            background-color: rgba(15, 23, 42, 0.85); /* 更暗，更不透明的遮罩 */
+            backdrop-filter: blur(4px);
+            position: fixed;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+        }
+        .custom-modal {
+            background-color: #f8fafc; /* Modal remains opaque and light for contrast/focus */
+            border-radius: 12px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.4); /* 增强阴影 */
+            padding: 0; 
+            font-family: 'Inter', sans-serif;
+            color: #1e293b;
+            min-width: 350px;
+            max-width: 90vw;
+        }
+        /* Modal title bar uses accent color and is opaque */
+        .custom-modal .modal-title-bar {
+            background-color: #3b82f6; 
+            color: white;
+            padding: 8px 12px;
+            font-weight: 600;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 0;
+            border-radius: 12px 12px 0 0;
+            cursor: default;
+        }
+        /* Modern Button Styles (no change needed) */
+        .modern-btn {
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-weight: 600;
+            transition: background-color 0.15s, transform 0.1s, box-shadow 0.15s;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        .modern-btn:active {
+            transform: translateY(1px);
+            box-shadow: none;
+        }
+        .modern-btn.primary {
+            background-color: #3b82f6; 
+            color: white;
+        }
+        .modern-btn.primary:hover {
+            background-color: #2563eb; 
+        }
+        .modern-btn.secondary {
+            background-color: #e2e8f0; 
+            color: #1e293b;
+        }
+        .modern-btn.secondary:hover {
+            background-color: #cbd5e1; 
+        }
+        .modern-btn.danger {
+            background-color: #ef4444; 
+            color: white;
+        }
+        .modern-btn.danger:hover {
+            background-color: #dc2626; 
+        }
+        
+        /* 设置面板中的选择框和输入框适应深色主题 */
+        .window-content select, .window-content input[type="file"] {
+            background-color: rgba(255, 255, 255, 0.1);
+            color: #e2e8f0;
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+        .window-content select option {
+            background-color: #1e293b; /* Ensure options are readable */
+        }
+        
+        /* 任务管理器列表背景适应深色主题 */
+        #task-manager-process-list {
+            background-color: rgba(255, 255, 255, 0.05);
+            border-color: rgba(255, 255, 255, 0.1);
+        }
+        #task-manager-process-list li:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+
+    </style>
+</head>
+<body>
+    <div id="desktop">
+        <!-- 桌面图标 (使用 Font Awesome 图标进行现代化) -->
+        <div id="notepad-icon" class="icon" data-app-name="notepad">
+            <span class="icon-image"><i class="fas fa-file-alt"></i></span>
+            <span class="icon-text">记事本</span>
+        </div>
+        <div id="paint-icon" class="icon" data-app-name="paint">
+            <span class="icon-image"><i class="fas fa-palette"></i></span>
+            <span class="icon-text">画图</span>
+        </div>
+        <div id="clock-icon" class="icon" data-app-name="clock">
+            <span class="icon-image"><i class="fas fa-clock"></i></span>
+            <span class="icon-text">时钟</span>
+        </div>
+        <div id="calculator-icon" class="icon" data-app-name="calculator">
+            <span class="icon-image"><i class="fas fa-calculator"></i></span>
+            <span class="icon-text">计算器</span>
+        </div>
+        <div id="settings-icon" class="icon" data-app-name="settings">
+            <span class="icon-image"><i class="fas fa-cog"></i></span>
+            <span class="icon-text">设置</span>
+        </div>
+        <div id="browser-icon" class="icon" data-app-name="browser">
+            <span class="icon-image"><i class="fas fa-globe"></i></span>
+            <span class="icon-text">浏览器</span>
+        </div>
+        <div id="taskmanager-icon" class="icon" data-app-name="taskmanager">
+            <span class="icon-image"><i class="fas fa-tasks"></i></span>
+            <span class="icon-text">任务管理器</span>
+        </div>
+        <div id="explorer-icon" class="icon" data-app-name="explorer">
+            <span class="icon-image"><i class="fas fa-folder"></i></span>
+            <span class="icon-text">资源管理器</span>
+        </div>
+    </div>
+
+    <div id="taskbar" class="taskbar">
+        <!-- 新增：开始按钮 -->
+        <button class="start-button">
+            <i class="fas fa-rocket text-accent"></i> 
+        </button>
+        <div id="taskbar-apps">
+            <!-- 任务栏中打开的应用图标将在此处动态添加 -->
+        </div>
+        <div id="taskbar-clock" class="taskbar-clock"></div>
+    </div>
+
+    <!-- Generic Custom Alert/Confirm Modal -->
+    <div id="custom-alert-confirm-modal-wrapper" class="custom-modal-wrapper hidden">
+        <div id="custom-alert-confirm-modal" class="custom-modal">
+            <div class="modal-title-bar">
+                <span id="custom-alert-confirm-title"></span>
+                <button class="window-control-button close-button" data-modal="custom-alert-confirm"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-content">
+                <p id="custom-alert-confirm-message" class="mb-6 text-center text-lg font-medium"></p>
+                <div id="custom-alert-confirm-buttons" class="flex justify-center space-x-4">
+                    <button id="generic-confirm-yes" class="modern-btn primary hidden">是</button>
+                    <button id="generic-confirm-no" class="modern-btn secondary hidden">否</button>
+                    <button id="generic-confirm-ok" class="modern-btn primary hidden">确定</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Save Confirmation Modal (for Notepad) -->
+    <div id="save-confirm-modal-wrapper" class="custom-modal-wrapper hidden">
+        <div id="save-confirm-modal" class="custom-modal">
+            <div class="modal-title-bar">
+                <span>记事本</span>
+                <button class="window-control-button close-button" data-modal="save-confirm"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-content">
+                <p class="mb-6 text-center text-lg font-medium">文档内容已更改，是否保存？</p>
+                <div class="flex justify-center space-x-4">
+                    <button id="save-yes" class="modern-btn primary">保存</button>
+                    <button id="save-no" class="modern-btn secondary">不保存</button>
+                    <button id="save-cancel" class="modern-btn danger">取消</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filename Input Modal -->
+    <div id="filename-input-modal-wrapper" class="custom-modal-wrapper hidden">
+        <div id="filename-input-modal" class="custom-modal">
+            <div class="modal-title-bar">
+                <span>保存文件</span>
+                <button class="window-control-button close-button" data-modal="filename-input"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-content">
+                <p class="mb-3 font-semibold">请输入文件名:</p>
+                <input type="text" id="filename-input" placeholder="例如：我的文档.txt" class="mb-6">
+                <div class="flex justify-center space-x-4">
+                    <button id="filename-save-btn" class="modern-btn primary">保存</button>
+                    <button id="filename-cancel-btn" class="modern-btn secondary">取消</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Custom Context Menu Structure (Still hidden as functionality was removed) -->
+    <div id="custom-context-menu" class="hidden absolute">
+        <ul id="context-menu-list">
+            <!-- Menu items will be dynamically added here -->
+        </ul>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const desktop = document.getElementById('desktop');
+            const taskbarClock = document.getElementById('taskbar-clock');
+            const taskbarAppsContainer = document.getElementById('taskbar-apps');
+
+            const saveConfirmModalWrapper = document.getElementById('save-confirm-modal-wrapper');
+            const filenameInputModalWrapper = document.getElementById('filename-input-modal-wrapper');
+            const customAlertConfirmModalWrapper = document.getElementById('custom-alert-confirm-modal-wrapper');
+
+            const filenameInput = document.getElementById('filename-input');
+            // const customContextMenu = document.getElementById('custom-context-menu'); 
+            // const contextMenuList = document.getElementById('context-menu-list'); 
+
+            // --- Common Modal Functions ---
+            function showCustomAlert(title, message, onOk) {
+                const modalWrapper = customAlertConfirmModalWrapper;
+                const modalTitleBar = modalWrapper.querySelector('#custom-alert-confirm-title');
+                const modalMessage = modalWrapper.querySelector('#custom-alert-confirm-message');
+                const okBtn = modalWrapper.querySelector('#generic-confirm-ok');
+                // Use .window-control-button selector as the close button is inside window-controls
+                const closeBtn = modalWrapper.querySelector('.modal-title-bar .window-control-button'); 
+
+                modalTitleBar.textContent = title;
+                modalMessage.textContent = message;
+
+                // Hide Yes/No buttons, show OK
+                modalWrapper.querySelector('#generic-confirm-yes').classList.add('hidden');
+                modalWrapper.querySelector('#generic-confirm-no').classList.add('hidden');
+                okBtn.classList.remove('hidden');
+
+                // Clear previous listeners by cloning and replacing (important for .once: true behavior)
+                const cloneOkBtn = okBtn.cloneNode(true);
+                okBtn.parentNode.replaceChild(cloneOkBtn, okBtn);
+                
+                // Clone the close button and replace it to remove old listeners
+                const cloneCloseBtn = closeBtn.cloneNode(true);
+                closeBtn.parentNode.replaceChild(cloneCloseBtn, closeBtn);
+
+
+                cloneOkBtn.addEventListener('click', () => {
+                    modalWrapper.classList.add('hidden');
+                    if (onOk) onOk();
+                });
+
+                cloneCloseBtn.addEventListener('click', () => {
+                    modalWrapper.classList.add('hidden');
+                    if (onOk) onOk(); // Close acts as OK for alert
+                });
+
+                modalWrapper.classList.remove('hidden');
+            }
+
+            function showCustomConfirm(title, message, onConfirm, onCancel) {
+                const modalWrapper = customAlertConfirmModalWrapper;
+                const modalTitleBar = modalWrapper.querySelector('#custom-alert-confirm-title');
+                const modalMessage = modalWrapper.querySelector('#custom-alert-confirm-message');
+                const yesBtn = modalWrapper.querySelector('#generic-confirm-yes');
+                const noBtn = modalWrapper.querySelector('#generic-confirm-no');
+                const okBtn = modalWrapper.querySelector('#generic-confirm-ok');
+                const closeBtn = modalWrapper.querySelector('.modal-title-bar .window-control-button');
+
+
+                modalTitleBar.textContent = title;
+                modalMessage.textContent = message;
+
+                // Show Yes/No, hide OK
+                yesBtn.classList.remove('hidden');
+                noBtn.classList.remove('hidden');
+                okBtn.classList.add('hidden');
+
+                // Clear previous listeners by cloning and replacing
+                const cloneYesBtn = yesBtn.cloneNode(true);
+                yesBtn.parentNode.replaceChild(cloneYesBtn, yesBtn);
+                const cloneNoBtn = noBtn.cloneNode(true);
+                noBtn.parentNode.replaceChild(cloneNoBtn, noBtn);
+                const cloneCloseBtn = closeBtn.cloneNode(true);
+                closeBtn.parentNode.replaceChild(cloneCloseBtn, closeBtn);
+
+
+                cloneYesBtn.addEventListener('click', () => {
+                    modalWrapper.classList.add('hidden');
+                    if (onConfirm) onConfirm();
+                });
+
+                cloneNoBtn.addEventListener('click', () => {
+                    modalWrapper.classList.add('hidden');
+                    if (onCancel) onCancel();
+                });
+
+                cloneCloseBtn.addEventListener('click', () => {
+                    modalWrapper.classList.add('hidden');
+                    if (onCancel) onCancel();
+                });
+
+                modalWrapper.classList.remove('hidden');
+            }
+            // --- End Common Modal Functions ---
+
+            // Get specific modal buttons for existing modals
+            const saveYesBtn = document.getElementById('save-yes');
+            const saveNoBtn = document.getElementById('save-no');
+            const saveCancelBtn = document.getElementById('save-cancel');
+            const filenameSaveBtn = document.getElementById('filename-save-btn');
+            const filenameCancelBtn = document.getElementById('filename-cancel-btn');
+
+
+            // Close buttons for all modals (using delegation for existing modals)
+            document.querySelectorAll('.modal-title-bar .window-control-button').forEach(button => {
+                button.addEventListener('click', (e) => {
+                    const modalType = e.target.closest('.window-control-button').dataset.modal; // Use closest for icon click
+                    if (modalType === 'save-confirm') saveConfirmModalWrapper.classList.add('hidden');
+                    else if (modalType === 'filename-input') filenameInputModalWrapper.classList.add('hidden');
+                    else if (modalType === 'custom-alert-confirm') customAlertConfirmModalWrapper.classList.add('hidden');
+                });
+            });
+
+            let zIndexCounter = 101; 
+
+            const activeWindowsMap = new Map(); 
+            // 新增：用于跟踪已打开的窗口实例，以避免重复打开
+            let openInstanceTracker = new Map(); // Key: unique instance ID (string), Value: window HTMLElement
+
+            let currentNotepadWindow = null;
+            let currentNotepadContent = '';
+            let currentNotepadFilePath = null; 
+
+            // Load timezone setting from localStorage, default to 0 (UTC)
+            let timezoneOffsetHours = parseInt(localStorage.getItem('windows1_timezone_offset') || '0');
+
+            // Load wallpaper setting from localStorage
+            const savedWallpaper = localStorage.getItem('windows1_wallpaper');
+            if (savedWallpaper) {
+                desktop.style.backgroundImage = `url('${savedWallpaper}')`;
+                desktop.style.backgroundSize = 'cover';
+                desktop.style.backgroundRepeat = 'no-repeat';
+                desktop.style.backgroundPosition = 'center center';
+            } else {
+                 // Set a default modern gradient background if no wallpaper is saved
+                desktop.style.backgroundImage = 'linear-gradient(135deg, #1f2937, #0f172a)';
+                desktop.style.backgroundSize = 'cover';
+                desktop.style.backgroundRepeat = 'no-repeat';
+                desktop.style.backgroundPosition = 'center center';
+            }
+
+            // Load saved file icons from localStorage
+            function loadSavedFiles() {
+                // Clear existing file icons on desktop before loading
+                desktop.querySelectorAll('.file-icon').forEach(icon => icon.remove());
+                for (let i = 0; i < localStorage.length; i++) {
+                    const key = localStorage.key(i);
+                    if (key.startsWith('windows1_file_')) {
+                        const filename = key.substring('windows1_file_'.length);
+                        createDesktopFileIcon(filename);
+                    }
+                }
+            }
+
+            // Application configurations (Updated icons to Font Awesome)
+            const apps = {
+                notepad: {
+                    title: '记事本 - 未命名.txt',
+                    icon: '<i class="fas fa-file-alt"></i>', 
+                    content: '<div class="p-4 h-full"><textarea class="w-full h-full bg-white border border-gray-300 rounded-lg text-sm p-3 focus:outline-none focus:ring-2 focus:ring-accent" placeholder="在此输入文本..." data-app-type="notepad-textarea"></textarea></div>',
+                    initialX: 50,
+                    initialY: 50,
+                    initialWidth: 500,
+                    initialHeight: 400,
+                    type: 'notepad', 
+                    memoryUsage: 8
+                },
+                paint: {
+                    title: '画图 - 无标题',
+                    icon: '<i class="fas fa-palette"></i>', 
+                    content: '<div class="p-4 h-full"><div class="w-full h-full bg-white border border-gray-300 rounded-lg flex items-center justify-center text-gray-500 text-sm">这是一个简单的画布区域。</div></div>',
+                    initialX: 100,
+                    initialY: 80,
+                    initialWidth: 600,
+                    initialHeight: 500,
+                    type: 'app',
+                    memoryUsage: 16
+                },
+                clock: {
+                    title: '时钟',
+                    icon: '<i class="fas fa-clock"></i>', 
+                    content: '<div class="p-4 h-full"><div class="w-full h-full flex flex-col items-center justify-center text-5xl font-extrabold text-accent bg-white rounded-lg shadow-inner" id="live-clock"></div></div>',
+                    initialX: 150,
+                    initialY: 100,
+                    initialWidth: 300,
+                    initialHeight: 200,
+                    type: 'app',
+                    memoryUsage: 4
+                },
+                calculator: {
+                    title: '计算器',
+                    icon: '<i class="fas fa-calculator"></i>', 
+                    content: `
+                        <div class="p-4 h-full flex flex-col">
+                            <div class="calculator">
+                                <input type="text" id="calc-display" class="w-full mb-4 text-right" value="0" readonly>
+                                <div class="grid grid-cols-4 gap-3">
+                                    <button class="calc-btn col-span-2" data-value="C">AC</button>
+                                    <button class="calc-btn" data-value="DEL"><i class="fas fa-backspace"></i></button>
+                                    <button class="calc-btn" data-value="/">/</button>
+
+                                    <button class="calc-btn" data-value="7">7</button>
+                                    <button class="calc-btn" data-value="8">8</button>
+                                    <button class="calc-btn" data-value="9">9</button>
+                                    <button class="calc-btn" data-value="*">×</button>
+
+                                    <button class="calc-btn" data-value="4">4</button>
+                                    <button class="calc-btn" data-value="5">5</button>
+                                    <button class="calc-btn" data-value="6">6</button>
+                                    <button class="calc-btn" data-value="-">-</button>
+
+                                    <button class="calc-btn" data-value="1">1</button>
+                                    <button class="calc-btn" data-value="2">2</button>
+                                    <button class="calc-btn" data-value="3">3</button>
+                                    <button class="calc-btn" data-value="+">+</button>
+
+                                    <button class="calc-btn col-span-2" data-value="0">0</button>
+                                    <button class="calc-btn" data-value=".">.</button>
+                                    <button class="calc-btn" data-value="=">=</button>
+                                </div>
+                            </div>
+                        </div>
+                    `,
+                    initialX: 200,
+                    initialY: 120,
+                    initialWidth: 350,
+                    initialHeight: 480,
+                    type: 'app',
+                    memoryUsage: 12
+                },
+                settings: {
+                    title: '设置',
+                    icon: '<i class="fas fa-cog"></i>', 
+                    content: `
+                        <div class="p-4 h-full bg-white space-y-6">
+                            <div class="p-4 border border-gray-200 rounded-lg shadow-sm">
+                                <h3 class="font-bold text-lg mb-3 border-b pb-2 text-accent">时区与时钟</h3>
+                                <div>
+                                    <label for="timezone-select" class="block text-sm font-medium mb-1">调整时区:</label>
+                                    <select id="timezone-select" class="p-2 border border-gray-300 rounded-lg w-full bg-white focus:ring-accent focus:border-accent">
+                                        <option value="0">UTC (伦敦)</option>
+                                        <option value="8">UTC+8 (北京/台北)</option>
+                                        <option value="-5">UTC-5 (纽约)</option>
+                                        <option value="9">UTC+9 (东京)</option>
+                                        <option value="-8">UTC-8 (洛杉矶)</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="p-4 border border-gray-200 rounded-lg shadow-sm">
+                                <h3 class="font-bold text-lg mb-3 border-b pb-2 text-accent">外观设置</h3>
+                                <div>
+                                    <label for="wallpaper-input" class="block text-sm font-medium mb-1">调整背景图片:</label>
+                                    <input type="file" id="wallpaper-input" accept="image/*" class="w-full text-sm p-1 border border-gray-300 rounded-lg bg-white">
+                                    <p class="text-xs text-gray-500 mt-1">（仅本地加载，不会上传）</p>
+                                </div>
+                            </div>
+                            
+                            <div class="p-4 border border-gray-200 rounded-lg shadow-sm">
+                                <h3 class="font-bold text-lg mb-3 border-b pb-2 text-accent">系统管理</h3>
+                                <div>
+                                    <button id="reset-windows-button" class="modern-btn danger w-full">重置系统 (清除数据)</button>
+                                </div>
+                                <div class="mt-4">
+                                    <h4 class="font-bold text-base mb-1">系统信息</h4>
+                                    <ul class="text-sm space-y-1 text-gray-600">
+                                        <li><strong>操作系统:</strong> Modern OS (模拟)</li>
+                                        <li><strong>运行内存:</strong> 256 MB (虚拟)</li>
+                                        <li><strong>CPU信息:</strong> Quad-Core ARM (虚拟)</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    `,
+                    initialX: 250,
+                    initialY: 150,
+                    initialWidth: 450,
+                    initialHeight: 580, 
+                    type: 'app',
+                    memoryUsage: 6
+                },
+                browser: {
+                    title: '浏览器',
+                    icon: '<i class="fas fa-globe"></i>', 
+                    content: `
+                        <div class="flex flex-col h-full bg-white">
+                            <div class="flex items-center p-3 border-b border-gray-200 bg-gray-50 flex-shrink-0">
+                                <input type="text" id="browser-address-bar" class="flex-grow p-2 border border-gray-300 rounded-l-lg text-sm focus:ring-accent focus:border-accent" value="https://www.baidu.com/">
+                                <button id="browser-go-button" class="px-4 py-2 modern-btn primary rounded-l-none">前往</button>
+                                <button id="browser-refresh-button" class="ml-2 px-3 py-2 modern-btn secondary"><i class="fas fa-sync-alt"></i></button>
+                                <button id="browser-new-window-button" class="ml-2 px-3 py-2 modern-btn secondary"><i class="fas fa-external-link-alt"></i></button>
+                            </div>
+                            <iframe id="browser-iframe" src="https://www.baidu.com/" class="flex-grow w-full h-full border-0 bg-white"></iframe>
+                        </div>
+                    `,
+                    initialX: 300,
+                    initialY: 100,
+                    initialWidth: 900,
+                    initialHeight: 700,
+                    type: 'app',
+                    memoryUsage: 50
+                },
+                taskmanager: {
+                    title: '任务管理器',
+                    icon: '<i class="fas fa-tasks"></i>',
+                    content: `
+                        <div class="p-4 h-full flex flex-col bg-white">
+                            <h3 class="font-bold text-xl mb-3 border-b pb-2 text-accent">运行中的应用</h3>
+                            <ul id="task-manager-process-list" class="flex-grow overflow-y-auto border border-gray-300 bg-white rounded-lg text-sm divide-y divide-gray-100 p-2">
+                                <!-- Processes will be listed here -->
+                            </ul>
+                        </div>
+                    `,
+                    initialX: 200,
+                    initialY: 150,
+                    initialWidth: 550,
+                    initialHeight: 450,
+                    type: 'app',
+                    memoryUsage: 10
+                },
+                explorer: {
+                    title: '资源管理器 - C:\\',
+                    icon: '<i class="fas fa-folder"></i>', 
+                    content: `
+                        <div class="p-4 h-full flex flex-col bg-white">
+                            <div class="flex items-center space-x-3 mb-4 flex-shrink-0">
+                                <button id="explorer-up-button" class="modern-btn secondary text-lg"><i class="fas fa-arrow-up"></i></button>
+                                <div id="explorer-path-display" class="explorer-path-bar flex-grow">C:\\</div>
+                                <button id="explorer-view-medium-icons" class="view-button modern-btn secondary text-sm active"><i class="fas fa-th-large"></i> 图标</button>
+                                <button id="explorer-view-details" class="view-button modern-btn secondary text-sm"><i class="fas fa-list"></i> 详细</button>
+                            </div>
+                            <div id="explorer-file-list" class="explorer-file-list">
+                                <!-- Files and folders will be listed here -->
+                            </div>
+                        </div>
+                    `,
+                    initialX: 180,
+                    initialY: 120,
+                    initialWidth: 700,
+                    initialHeight: 550,
+                    type: 'app',
+                    memoryUsage: 15
+                }
+            };
+
+            // Function to update clock display
+            function updateClockDisplay(targetElement, includeSeconds = true) {
+                const now = new Date();
+                let utcHours = now.getUTCHours();
+                let utcMinutes = now.getUTCMinutes();
+                let utcSeconds = now.getUTCSeconds();
+
+                let displayHours = utcHours + timezoneOffsetHours;
+
+                // Adjust hours to be within 0-23
+                displayHours = (displayHours % 24 + 24) % 24;
+
+                const ampm = displayHours >= 12 ? 'PM' : 'AM';
+                displayHours = displayHours % 12;
+                displayHours = displayHours ? displayHours : 12; // 12-hour format
+
+                const formattedMinutes = utcMinutes < 10 ? '0' + utcMinutes : utcMinutes;
+                const formattedSeconds = utcSeconds < 10 ? '0' + utcSeconds : utcSeconds;
+
+                // Modern clock display format
+                const timeText = `${displayHours}:${formattedMinutes}${includeSeconds ? ':' + formattedSeconds : ''}`;
+                
+                // If it's the app clock, display AM/PM and time text separately with different styles
+                if (targetElement.id === 'live-clock') {
+                    // Update: Ensure clock app display colors are light for dark background
+                    targetElement.innerHTML = `
+                        <span class="text-white">${timeText}</span>
+                        <span class="text-2xl font-normal opacity-70 text-gray-300">${ampm}</span>
+                    `;
+                    targetElement.style.backgroundColor = 'rgba(255, 255, 255, 0.05)';
+                    targetElement.style.boxShadow = 'none'; // Remove unnecessary light shadow
+                } else {
+                    // Taskbar clock is simple text
+                    targetElement.textContent = `${timeText} ${ampm}`;
+                }
+            }
+
+            // Function to update taskbar clock
+            function updateTaskbarClock() {
+                updateClockDisplay(taskbarClock, false); // Taskbar clock doesn't need seconds
+            }
+
+            // Function to activate a window (bring to front)
+            function activateWindow(windowElement) {
+                // Deactivate all taskbar icons
+                taskbarAppsContainer.querySelectorAll('.taskbar-app-item').forEach(item => {
+                    item.classList.remove('active');
+                });
+
+                // Bring current window to the front by increasing its z-index
+                windowElement.style.zIndex = ++zIndexCounter;
+
+                // Activate the corresponding taskbar icon
+                const taskbarItem = activeWindowsMap.get(windowElement);
+                if (taskbarItem) {
+                    taskbarItem.classList.add('active');
+                }
+
+                // If window is minimized, restore it
+                if (windowElement.isMinimized) {
+                    restoreWindow(windowElement);
+                }
+            }
+
+            // Function to minimize a window
+            function minimizeWindow(windowElement) {
+                windowElement.style.display = 'none'; // Hide window
+                windowElement.isMinimized = true;
+
+                // Remove active state from taskbar icon as the window is minimized
+                const taskbarItem = activeWindowsMap.get(windowElement);
+                if (taskbarItem) {
+                    taskbarItem.classList.remove('active');
+                }
+            }
+
+            // Function to maximize a window
+            function maximizeWindow(windowElement) {
+                // Save original position and dimensions
+                windowElement.originalRect = {
+                    left: windowElement.style.left,
+                    top: windowElement.style.top,
+                    width: windowElement.style.width,
+                    height: windowElement.style.height,
+                    borderRadius: windowElement.style.borderRadius,
+                    boxShadow: windowElement.style.boxShadow,
+                    backdropFilter: windowElement.style.backdropFilter,
+                    backgroundColor: windowElement.style.backgroundColor,
+                    border: windowElement.style.border
+                };
+
+                const desktopRect = desktop.getBoundingClientRect();
+                // Taskbar is fixed position and bottom: 0 now, only account for its height
+                const taskbarHeight = document.getElementById('taskbar').offsetHeight;
+                const taskbarMargin = 12; // Taskbar margin from bottom
+
+                // Set to desktop max size (minus taskbar height)
+                windowElement.style.left = '0px';
+                windowElement.style.top = '0px';
+                // Adjust height to respect the floating taskbar's area
+                windowElement.style.width = `${desktopRect.width}px`;
+                windowElement.style.height = `${desktopRect.height - taskbarHeight - taskbarMargin}px`;
+                
+                // Remove visual elements
+                windowElement.style.resize = 'none'; // Disable resizing when maximized
+                windowElement.style.borderRadius = '0';
+                windowElement.style.boxShadow = 'none';
+                windowElement.style.backdropFilter = 'none'; // Remove blur when maximized
+                windowElement.style.backgroundColor = 'rgba(15, 23, 42, 0.9)'; // Use opaque background
+                windowElement.style.border = 'none';
+
+                // Also update the window-content background for a full opaque look when maximized
+                const windowContent = windowElement.querySelector('.window-content');
+                if (windowContent) {
+                    windowContent.style.backgroundColor = 'rgba(15, 23, 42, 1)'; // Fully opaque dark
+                    windowContent.style.color = 'white';
+                }
+
+                windowElement.isMaximized = true;
+
+                // Change maximize button to restore button
+                const maximizeRestoreButton = windowElement.querySelector('.maximize-restore-button');
+                if (maximizeRestoreButton) {
+                    maximizeRestoreButton.innerHTML = '<i class="far fa-window-restore"></i>'; // Restore icon
+                }
+                activateWindow(windowElement); // Activate window after maximizing
+            }
+
+            // Function to restore a window (from minimized or maximized state)
+            function restoreWindow(windowElement) {
+                if (windowElement.originalRect) {
+                    windowElement.style.left = windowElement.originalRect.left;
+                    windowElement.style.top = windowElement.originalRect.top;
+                    windowElement.style.width = windowElement.originalRect.width;
+                    windowElement.style.height = windowElement.originalRect.height;
+                    // Restore Aero styling properties
+                    windowElement.style.borderRadius = windowElement.originalRect.borderRadius || '12px'; 
+                    windowElement.style.boxShadow = windowElement.originalRect.boxShadow || '0 10px 30px rgba(0, 0, 0, 0.5)';
+                    windowElement.style.backdropFilter = windowElement.originalRect.backdropFilter || 'blur(16px)';
+                    windowElement.style.backgroundColor = windowElement.originalRect.backgroundColor || 'rgba(30, 41, 59, 0.6)';
+                    windowElement.style.border = windowElement.originalRect.border || '1px solid rgba(255, 255, 255, 0.1)';
+                }
+                windowElement.style.resize = 'both'; // Enable resizing
+                windowElement.isMaximized = false;
+                windowElement.isMinimized = false;
+                windowElement.style.display = ''; // Make window visible
+                
+                // Restore window-content background to translucent state
+                const windowContent = windowElement.querySelector('.window-content');
+                if (windowContent) {
+                    windowContent.style.backgroundColor = 'rgba(30, 41, 59, 0.4)'; // Restore translucent dark
+                    windowContent.style.color = '#e2e8f0';
+                }
+
+                // Change restore button to maximize button
+                const maximizeRestoreButton = windowElement.querySelector('.maximize-restore-button');
+                if (maximizeRestoreButton) {
+                    maximizeRestoreButton.innerHTML = '<i class="far fa-window-maximize"></i>'; // Maximize icon
+                }
+                activateWindow(windowElement); // Activate window after restoring
+            }
+
+            // Function to create and open a window
+            function openWindow(appName, filePath = null, initialUrl = null) {
+                const appConfig = apps[appName];
+                if (!appConfig) return;
+
+                let windowTitle = appConfig.title;
+                let initialContent = '';
+
+                // 1. 确定唯一的实例ID (Instance ID) 并检查是否已打开
+                let instanceId;
+                
+                if (appName === 'notepad') {
+                    if (filePath) {
+                        // 对于已保存文件，实例 ID 是文件路径
+                        instanceId = `notepad:${filePath}`;
+                        windowTitle = filePath;
+                        initialContent = localStorage.getItem('windows1_file_' + filePath) || '';
+                    } else {
+                        // 对于新的、未保存的记事本实例，只允许一个
+                        instanceId = 'notepad:unsaved';
+                        windowTitle = '记事本 - 未命名.txt';
+                    }
+                } else if (['browser', 'explorer'].includes(appName)) {
+                    // 浏览器和资源管理器是多实例的 (生成唯一的 ID)
+                    instanceId = `${appName}:${Date.now()}`;
+                } else {
+                    // 其他应用程序是单实例的
+                    instanceId = appName;
+                }
+
+                // --- DUPLICATE CHECK (重复检查) ---
+                if (openInstanceTracker.has(instanceId)) {
+                    const existingWindow = openInstanceTracker.get(instanceId);
+                    activateWindow(existingWindow); // 激活已存在的窗口
+                    return; // 阻止创建新窗口
+                }
+                // --- END DUPLICATE CHECK ---
+
+                const windowElement = document.createElement('div');
+                windowElement.className = 'window';
+                windowElement.style.left = `${appConfig.initialX}px`;
+                windowElement.style.top = `${appConfig.initialY}px`;
+                windowElement.style.width = `${appConfig.initialWidth}px`;
+                windowElement.style.height = `${appConfig.initialHeight}px`;
+                windowElement.isMinimized = false; 
+                windowElement.isMaximized = false; 
+                windowElement.originalRect = {}; 
+                
+                windowElement.instanceId = instanceId; // 存储实例 ID
+                windowElement.filePath = filePath; 
+                windowElement.appName = appName; 
+
+                // ... (Window Content Setup)
+                windowElement.innerHTML = `
+                    <div class="window-title-bar">
+                        <span class="window-title-text">${windowTitle}</span>
+                        <div class="window-controls">
+                            <button class="minimize-button window-control-button"><i class="fas fa-minus"></i></button>
+                            <button class="maximize-restore-button window-control-button"><i class="far fa-window-maximize"></i></button>
+                            <button class="close-button window-control-button close-button"><i class="fas fa-times"></i></button>
+                        </div>
+                    </div>
+                    <div class="window-content">
+                        ${appConfig.content}
+                    </div>
+                `;
+
+                desktop.appendChild(windowElement);
+
+                // 2. 将新实例添加到跟踪器中
+                openInstanceTracker.set(instanceId, windowElement);
+
+                // Handle textarea for Notepad
+                if (appName === 'notepad') {
+                    const textarea = windowElement.querySelector('[data-app-type="notepad-textarea"]');
+                    if (textarea) {
+                        textarea.value = initialContent;
+                        // Record original content to check for modifications
+                        windowElement.originalContent = initialContent;
+                        textarea.addEventListener('input', () => {
+                            // Set a flag to indicate document is modified when content changes
+                            windowElement.isModified = (textarea.value !== windowElement.originalContent);
+                        });
+                    }
+                } else if (appName === 'browser') {
+                    const addressBar = windowElement.querySelector('#browser-address-bar');
+                    const goButton = windowElement.querySelector('#browser-go-button');
+                    const refreshButton = windowElement.querySelector('#browser-refresh-button');
+                    const newWindowButton = windowElement.querySelector('#browser-new-window-button'); 
+                    const browserIframe = windowElement.querySelector('#browser-iframe');
+
+                    // Set initial URL if provided (for "new window" or file opening)
+                    if (initialUrl) {
+                        addressBar.value = initialUrl;
+                        browserIframe.src = initialUrl;
+                    }
+
+                    goButton.addEventListener('click', () => {
+                        let url = addressBar.value;
+                        // Basic URL validation/prefixing for user convenience
+                        if (!url.startsWith('http://') && !url.startsWith('https://')) {
+                            url = 'https://' + url;
+                        }
+                        // Try to navigate, noting security restrictions
+                        browserIframe.src = url;
+                    });
+
+                    refreshButton.addEventListener('click', () => {
+                        // Reloads the current iframe content
+                        browserIframe.src = browserIframe.src;
+                    });
+
+                    newWindowButton.addEventListener('click', () => {
+                        // Opens a new simulated browser window
+                        openWindow('browser', null, 'https://www.baidu.com/'); // Default new window to Baidu
+                    });
+
+                    // Handle Enter key in address bar
+                    addressBar.addEventListener('keypress', (e) => {
+                        if (e.key === 'Enter') {
+                            goButton.click();
+                        }
+                    });
+
+                    // Note: Cannot reliably get cross-origin iframe URL due to security.
+                    // The address bar will only update with what the user types.
+                } else if (appName === 'taskmanager') {
+                    // Task Manager specific logic
+                    populateTaskManager(windowElement);
+                    // Set up real-time refresh for Task Manager
+                    windowElement.refreshInterval = setInterval(() => populateTaskManager(windowElement), 1000);
+                } else if (appName === 'explorer') {
+                    // Explorer specific logic
+                    const pathDisplay = windowElement.querySelector('#explorer-path-display');
+                    const fileListContainer = windowElement.querySelector('#explorer-file-list');
+                    const upButton = windowElement.querySelector('#explorer-up-button');
+                    const mediumIconsButton = windowElement.querySelector('#explorer-view-medium-icons');
+                    const detailsButton = windowElement.querySelector('#explorer-view-details');
+
+                    let currentExplorerPath = 'C:\\'; // Initial path
+                    let currentViewMode = 'medium-icons'; // 'medium-icons' or 'details'
+
+                    // Function to update active view button styling
+                    function updateViewButtons() {
+                        mediumIconsButton.classList.remove('active');
+                        detailsButton.classList.remove('active');
+                        if (currentViewMode === 'medium-icons') {
+                            mediumIconsButton.classList.add('active');
+                        } else {
+                            detailsButton.classList.add('active');
+                        }
+                    }
+
+                    // Function to render files based on current path and view mode
+                    function renderExplorerFiles() {
+                        fileListContainer.innerHTML = ''; // Clear existing list
+                        pathDisplay.textContent = currentExplorerPath;
+                        windowElement.querySelector('.window-title-text').textContent = `资源管理器 - ${currentExplorerPath}`;
+
+                        // Apply view mode class
+                        if (currentViewMode === 'details') {
+                            fileListContainer.classList.add('details-view');
+                            // Add header for details view
+                            const header = document.createElement('div');
+                            // Update: Use light text colors for the dark background
+                            header.className = 'explorer-header flex text-sm font-semibold p-2 border-b'; 
+                            header.innerHTML = `
+                                <div class="w-10 flex-shrink-0"></div> <!-- Icon placeholder -->
+                                <div class="flex-grow">名称</div>
+                                <div class="item-type w-32">类型</div>
+                                <div class="item-size w-24 text-right">大小</div>
+                            `;
+                            fileListContainer.appendChild(header);
+                        } else {
+                            fileListContainer.classList.remove('details-view');
+                        }
+
+                        if (currentExplorerPath === 'C:\\') {
+                            // In C drive, show Desktop folder
+                            const desktopFolder = document.createElement('div');
+                            desktopFolder.className = 'explorer-item';
+                            desktopFolder.innerHTML = `
+                                <span class="item-icon"><i class="fas fa-desktop"></i></span>
+                                <span class="item-text">桌面</span>
+                                ${currentViewMode === 'details' ? '<span class="item-type">系统文件夹</span><span class="item-size text-right"></span>' : ''}
+                            `;
+                            desktopFolder.dataset.path = 'C:\\桌面';
+                            desktopFolder.dataset.type = 'folder';
+                            fileListContainer.appendChild(desktopFolder);
+                        } else if (currentExplorerPath === 'C:\\桌面') {
+                            // In Desktop, list saved files and app shortcuts
+
+                            // Add app shortcuts
+                            const appShortcuts = [
+                                { name: '记事本.lnk', app: 'notepad', icon: '<i class="fas fa-file-alt"></i>', type: '应用程序快捷方式', size: '0 KB' },
+                                { name: '画图.lnk', app: 'paint', icon: '<i class="fas fa-palette"></i>', type: '应用程序快捷方式', size: '0 KB' },
+                                { name: '时钟.lnk', app: 'clock', icon: '<i class="fas fa-clock"></i>', type: '应用程序快捷方式', size: '0 KB' },
+                                { name: '计算器.lnk', app: 'calculator', icon: '<i class="fas fa-calculator"></i>', type: '应用程序快捷方式', size: '0 KB' },
+                                { name: '设置.lnk', app: 'settings', icon: '<i class="fas fa-cog"></i>', type: '应用程序快捷方式', size: '0 KB' },
+                                { name: '浏览器.lnk', app: 'browser', icon: '<i class="fas fa-globe"></i>', type: '应用程序快捷方式', size: '0 KB' },
+                                { name: '任务管理器.lnk', app: 'taskmanager', icon: '<i class="fas fa-tasks"></i>', type: '应用程序快捷方式', size: '0 KB' },
+                                { name: '资源管理器.lnk', app: 'explorer', icon: '<i class="fas fa-folder"></i>', type: '应用程序快捷方式', size: '0 KB' } // Self-reference for recursive opening
+                            ];
+
+                            appShortcuts.forEach(shortcut => {
+                                const item = document.createElement('div');
+                                item.className = 'explorer-item';
+                                item.innerHTML = `
+                                    <span class="item-icon">${shortcut.icon}</span>
+                                    <span class="item-text">${shortcut.name}</span>
+                                    ${currentViewMode === 'details' ? `<span class="item-type w-32">${shortcut.type}</span><span class="item-size w-24 text-right">${shortcut.size}</span>` : ''}
+                                `;
+                                item.dataset.appName = shortcut.app; // Store associated app name
+                                item.dataset.type = 'shortcut';
+                            fileListContainer.appendChild(item);
+                            });
+
+                            // Add saved Notepad files
+                            for (let i = 0; i < localStorage.length; i++) {
+                                const key = localStorage.key(i);
+                                if (key.startsWith('windows1_file_')) {
+                                    const filename = key.substring('windows1_file_'.length);
+                                    // Simulate file size
+                                    const fileSizeKB = Math.floor(Math.random() * (20 - 5 + 1)) + 5; // 5-20 KB
+                                    const item = document.createElement('div');
+                                    item.className = 'explorer-item';
+                                    item.innerHTML = `
+                                        <span class="item-icon"><i class="fas fa-file-alt"></i></span>
+                                        <span class="item-text">${filename}</span>
+                                        ${currentViewMode === 'details' ? `<span class="item-type w-32">文本文件</span><span class="item-size w-24 text-right">${fileSizeKB} KB</span>` : ''}
+                                    `;
+                                    item.dataset.appName = 'notepad'; // Notepad is the app for .txt files
+                                    item.dataset.fileName = filename; // Store the actual filename
+                                    item.dataset.type = 'file';
+                                    fileListContainer.appendChild(item);
+                                }
+                            }
+
+                            if (fileListContainer.children.length === (currentViewMode === 'details' ? 1 : 0)) {
+                                fileListContainer.innerHTML += '<div class="text-center text-gray-400 py-4 col-span-full">此文件夹是空的。</div>';
+                            }
+
+                        } else {
+                            // For unknown paths, show empty
+                            fileListContainer.innerHTML = '<div class="text-center text-gray-400 py-4 col-span-full">此文件夹是空的。</div>';
+                        }
+
+                        // Enable/Disable Up button
+                        if (currentExplorerPath === 'C:\\') {
+                            upButton.disabled = true;
+                            upButton.classList.add('opacity-50', 'cursor-not-allowed');
+                            upButton.classList.remove('primary'); // Remove primary color when disabled
+                            upButton.classList.add('secondary'); // Ensure it looks like secondary button
+                        } else {
+                            upButton.disabled = false;
+                            upButton.classList.remove('opacity-50', 'cursor-not-allowed');
+                        }
+                    }
+
+                    // Event listener for "Up" button
+                    upButton.addEventListener('click', () => {
+                        if (currentExplorerPath === 'C:\\桌面') {
+                            currentExplorerPath = 'C:\\';
+                            renderExplorerFiles();
+                        }
+                        // Add more parent paths here if deeper hierarchy is implemented
+                    });
+
+                    // Event listeners for view mode buttons
+                    mediumIconsButton.addEventListener('click', () => {
+                        currentViewMode = 'medium-icons';
+                        updateViewButtons();
+                        renderExplorerFiles();
+                    });
+
+                    detailsButton.addEventListener('click', () => {
+                        currentViewMode = 'details';
+                        updateViewButtons();
+                        renderExplorerFiles();
+                    });
+
+
+                    // Event listener for clicking on files/folders
+                    fileListContainer.addEventListener('dblclick', (e) => {
+                        const item = e.target.closest('.explorer-item');
+                        if (!item) return;
+
+                        const type = item.dataset.type;
+                        if (type === 'folder') {
+                            currentExplorerPath = item.dataset.path;
+                            renderExplorerFiles();
+                        } else if (type === 'shortcut' || type === 'file') {
+                            const targetAppName = item.dataset.appName;
+                            const targetFileName = item.dataset.fileName; // Will be undefined for shortcuts
+                            openWindow(targetAppName, targetFileName);
+                        }
+                    });
+
+                    renderExplorerFiles(); // Initial render
+                    updateViewButtons(); // Set initial button state
+
+                    // Real-time refresh for explorer
+                    windowElement.refreshInterval = setInterval(() => {
+                        // A quick check to see if desktop file icons have changed.
+                        const currentFileKeys = Object.keys(localStorage).filter(key => key.startsWith('windows1_file_'));
+                        const currentDesktopIcons = desktop.querySelectorAll('.file-icon').length;
+
+                        if (currentFileKeys.length !== currentDesktopIcons) {
+                            loadSavedFiles(); // Re-load desktop icons
+                            renderExplorerFiles(); // Re-render explorer content
+                        }
+                    }, 1000); // Refresh every second
+                }
+
+
+                // Create taskbar application icon
+                const taskbarAppItem = document.createElement('button');
+                taskbarAppItem.className = 'taskbar-app-item';
+                taskbarAppItem.innerHTML = appConfig.icon; // Use app icon
+                taskbarAppItem.title = windowTitle; // Show title on hover
+                taskbarAppsContainer.appendChild(taskbarAppItem);
+
+                // Associate window with taskbar icon
+                activeWindowsMap.set(windowElement, taskbarAppItem);
+
+                // Taskbar icon click event: activate corresponding window
+                taskbarAppItem.addEventListener('click', () => {
+                    activateWindow(windowElement);
+                });
+
+                // Get title bar and control buttons
+                const titleBar = windowElement.querySelector('.window-title-bar');
+                const closeButton = windowElement.querySelector('.close-button');
+                const minimizeButton = windowElement.querySelector('.minimize-button');
+                const maximizeRestoreButton = windowElement.querySelector('.maximize-restore-button');
+                const windowTitleSpan = windowElement.querySelector('.window-title-text');
+
+
+                // Close window event handler
+                closeButton.addEventListener('click', () => {
+                    if (appName === 'notepad' && windowElement.isModified) {
+                        currentNotepadWindow = windowElement; // Set current Notepad window for save modals
+                        currentNotepadContent = windowElement.querySelector('[data-app-type="notepad-textarea"]').value;
+                        currentNotepadFilePath = windowElement.filePath; // Record current file path
+                        saveConfirmModalWrapper.classList.remove('hidden'); // Show save confirmation modal
+                    } else {
+                        // Directly close window
+                        closeAndCleanupWindow(windowElement);
+                    }
+                });
+
+                // Minimize button event
+                minimizeButton.addEventListener('click', () => {
+                    minimizeWindow(windowElement);
+                });
+
+                // Maximize/Restore button event
+                maximizeRestoreButton.addEventListener('click', () => {
+                    if (windowElement.isMaximized) {
+                        restoreWindow(windowElement);
+                    } else {
+                        maximizeWindow(windowElement);
+                    }
+                });
+
+                // Activate window (bring to front on mousedown)
+                windowElement.addEventListener('mousedown', (e) => {
+                    // Only activate if the click target is not a window control button or its icon
+                    if (!e.target.closest('.window-control-button')) {
+                         activateWindow(windowElement);
+                    }
+                });
+
+                // Make window draggable
+                let isDragging = false;
+                let offsetX, offsetY;
+
+                titleBar.addEventListener('mousedown', (e) => {
+                    // Do not drag if a control button or icon inside it is clicked
+                    if (e.target.closest('.window-control-button')) {
+                        return;
+                    }
+                    isDragging = true;
+                    offsetX = e.clientX - windowElement.getBoundingClientRect().left;
+                    offsetY = e.clientY - windowElement.getBoundingClientRect().top;
+                    titleBar.style.cursor = 'grabbing'; // Change cursor
+                    activateWindow(windowElement); // Activate window while dragging
+                });
+
+                desktop.addEventListener('mousemove', (e) => {
+                    if (!isDragging) return;
+                    e.preventDefault(); // Prevent text selection
+
+                    const newX = e.clientX - offsetX;
+                    const newY = e.clientY - offsetY;
+
+                    // Restrict window within desktop boundaries and above taskbar
+                    const desktopRect = desktop.getBoundingClientRect();
+                    const taskbarHeight = document.getElementById('taskbar').offsetHeight;
+                    const taskbarBottomMargin = 24; // Use a larger margin here to prevent overlap with floating taskbar
+
+                    // Only restrict if window is not maximized
+                    if (!windowElement.isMaximized) {
+                        windowElement.style.left = `${Math.max(0, Math.min(newX, desktopRect.width - windowElement.offsetWidth))}px`;
+                        // Restrict top position to ensure it doesn't overlap the taskbar area
+                        windowElement.style.top = `${Math.max(0, Math.min(newY, desktopRect.height - windowElement.offsetHeight - taskbarHeight - taskbarBottomMargin))}px`;
+                    }
+                });
+
+                desktop.addEventListener('mouseup', () => {
+                    isDragging = false;
+                    titleBar.style.cursor = 'grab'; // Restore cursor
+                });
+
+                // Specific application logic
+                if (appName === 'clock') {
+                    const liveClock = windowElement.querySelector('#live-clock');
+                    function updateClockApp() {
+                        updateClockDisplay(liveClock, true); // App clock needs seconds
+                    }
+                    updateClockApp();
+                    windowElement.clockInterval = setInterval(updateClockApp, 1000); // Save interval ID to clear later
+                } else if (appName === 'calculator') {
+                    const display = windowElement.querySelector('#calc-display');
+                    const buttons = windowElement.querySelectorAll('.calc-btn');
+                    let currentInput = '0';
+                    let operator = null;
+                    let firstOperand = null;
+                    let waitingForSecondOperand = false;
+
+                    function updateDisplay() {
+                        display.value = currentInput;
+                    }
+
+                    function clear() {
+                        currentInput = '0';
+                        operator = null;
+                        firstOperand = null;
+                        waitingForSecondOperand = false;
+                        updateDisplay();
+                    }
+
+                    function deleteLastChar() {
+                        if (currentInput.length > 1) {
+                            currentInput = currentInput.slice(0, -1);
+                        } else {
+                            currentInput = '0';
+                        }
+                        updateDisplay();
+                    }
+
+                    function inputDigit(digit) {
+                        if (waitingForSecondOperand === true) {
+                            currentInput = digit;
+                            waitingForSecondOperand = false;
+                        } else {
+                            currentInput = currentInput === '0' ? digit : currentInput + digit;
+                        }
+                        updateDisplay();
+                    }
+
+                    function inputDecimal(dot) {
+                        if (waitingForSecondOperand === true) return;
+                        if (!currentInput.includes(dot)) {
+                            currentInput += dot;
+                        }
+                        updateDisplay();
+                    }
+
+                    function handleOperator(nextOperator) {
+                        const inputValue = parseFloat(currentInput);
+
+                        if (operator && waitingForSecondOperand) {
+                            operator = nextOperator;
+                            return;
+                        }
+
+                        if (firstOperand === null) {
+                            firstOperand = inputValue;
+                        } else if (operator) {
+                            const result = calculate(firstOperand, inputValue, operator);
+                            currentInput = String(result);
+                            firstOperand = result;
+                        }
+
+                        waitingForSecondOperand = true;
+                        operator = nextOperator;
+                        updateDisplay();
+                    }
+
+                    function calculate(first, second, op) {
+                        if (op === '+') return first + second;
+                        if (op === '-') return first - second;
+                        if (op === '*') return first * second;
+                        if (op === '/') return first / second;
+                        return second; // Should not happen
+                    }
+
+                    buttons.forEach(button => {
+                        button.addEventListener('click', (e) => {
+                            const { value } = e.target.closest('.calc-btn').dataset; // Use closest to handle icon clicks
+
+                            if (value === 'C') {
+                                clear();
+                                return;
+                            }
+                            if (value === 'DEL') {
+                                deleteLastChar();
+                                return;
+                            }
+                            if (value === '=') {
+                                if (operator && firstOperand !== null) {
+                                    const inputValue = parseFloat(currentInput);
+                                    currentInput = String(calculate(firstOperand, inputValue, operator));
+                                    firstOperand = null;
+                                    operator = null;
+                                    waitingForSecondOperand = false;
+                                    updateDisplay();
+                                }
+                                return;
+                            }
+                            if (['+', '-', '*', '/'].includes(value)) {
+                                handleOperator(value);
+                                return;
+                            }
+                            if (value === '.') {
+                                inputDecimal(value);
+                                return;
+                            }
+
+                            inputDigit(value);
+                        });
+                    });
+                    updateDisplay(); // Initialize display
+                } else if (appName === 'settings') {
+                    const timezoneSelect = windowElement.querySelector('#timezone-select');
+                    const wallpaperInput = windowElement.querySelector('#wallpaper-input');
+                    const resetWindowsButton = windowElement.querySelector('#reset-windows-button');
+
+                    // Initialize timezone selection
+                    timezoneSelect.value = timezoneOffsetHours; // Set current value
+
+                    timezoneSelect.addEventListener('change', (event) => {
+                        timezoneOffsetHours = parseInt(event.target.value);
+                        localStorage.setItem('windows1_timezone_offset', timezoneOffsetHours);
+                        // Immediately update taskbar clock and all open clock apps
+                        updateTaskbarClock();
+                        document.querySelectorAll('#live-clock').forEach(clock => {
+                            updateClockDisplay(clock, true);
+                        });
+                    });
+
+                    wallpaperInput.addEventListener('change', (event) => {
+                        const file = event.target.files[0];
+                        if (file) {
+                            const reader = new FileReader();
+                            reader.onload = (e) => {
+                                const imageUrl = e.target.result;
+                                desktop.style.backgroundImage = `url('${imageUrl}')`;
+                                desktop.style.backgroundSize = 'cover';
+                                desktop.style.backgroundRepeat = 'no-repeat';
+                                desktop.style.backgroundPosition = 'center center';
+                                localStorage.setItem('windows1_wallpaper', imageUrl); // Save to local storage
+                            };
+                            reader.readAsDataURL(file);
+                        }
+                    });
+
+                    resetWindowsButton.addEventListener('click', () => {
+                        showCustomConfirm(
+                            '重置系统',
+                            '这会清除所有保存的数据和设置，系统将恢复到初始状态。是否继续？',
+                            () => { // onConfirm (Yes)
+                                localStorage.clear();
+                                location.reload();
+                            },
+                            () => { // onCancel (No)
+                                // Do nothing, just close the modal
+                            }
+                        );
+                    });
+                }
+                // Ensure the newly opened window is activated
+                activateWindow(windowElement);
+            }
+
+            // Clean up window and remove taskbar icon
+            function closeAndCleanupWindow(windowElement) {
+                // 新增：从实例跟踪器中移除
+                if (windowElement.instanceId && openInstanceTracker.has(windowElement.instanceId)) {
+                    openInstanceTracker.delete(windowElement.instanceId);
+                }
+
+                const taskbarItem = activeWindowsMap.get(windowElement);
+                if (taskbarItem) {
+                    taskbarItem.remove();
+                    activeWindowsMap.delete(windowElement);
+                }
+                windowElement.remove();
+                // If it's a clock, stop its timer
+                if (windowElement.clockInterval) {
+                    clearInterval(windowElement.clockInterval);
+                }
+                // If it's Task Manager, stop its refresh interval
+                if (windowElement.refreshInterval) {
+                    clearInterval(windowElement.refreshInterval);
+                }
+                // When a window closes, if Task Manager is open, refresh its list
+                document.querySelectorAll('.window[data-app-name="taskmanager"]').forEach(tmWindow => {
+                    populateTaskManager(tmWindow);
+                });
+                // Also, if Explorer is open, refresh it as well (since files might have changed)
+                document.querySelectorAll('.window[data-app-name="explorer"]').forEach(expWindow => {
+                    // This is a simple way to trigger a re-render. A more direct call to renderExplorerFiles() would be better if scope allowed.
+                    expWindow.querySelector('#explorer-up-button').click(); // Go up and down to force refresh
+                    expWindow.querySelector('#explorer-up-button').click();
+                });
+            }
+
+            // Create file icon on desktop
+            function createDesktopFileIcon(filename) {
+                const existingIcon = document.querySelector(`.icon[data-file-name="${filename}"]`);
+                if (existingIcon) {
+                    return; // Don't create duplicate file icons
+                }
+
+                const fileIcon = document.createElement('div');
+                fileIcon.className = 'icon file-icon'; // Add file-icon class for distinction
+                fileIcon.dataset.appName = 'notepad'; // Associate with notepad app
+                fileIcon.dataset.fileName = filename; // Store filename
+
+                fileIcon.innerHTML = `
+                    <span class="icon-image"><i class="fas fa-file-alt"></i></span>
+                    <span class="icon-text">${filename}</span>
+                `;
+                desktop.appendChild(fileIcon);
+            }
+
+            // Populate Task Manager process list
+            function populateTaskManager(taskManagerWindowElement) {
+                const processList = taskManagerWindowElement.querySelector('#task-manager-process-list');
+                if (!processList) return; // Ensure element exists
+
+                processList.innerHTML = ''; // Clear existing list
+
+                // Iterate through all active windows
+                activeWindowsMap.forEach((taskbarItem, activeWindowElement) => {
+                    // Exclude the Task Manager itself from its list
+                    if (activeWindowElement.appName === 'taskmanager') {
+                        return;
+                    }
+
+                    const appTitle = activeWindowElement.querySelector('.window-title-text').textContent;
+                    // Get the estimated memory usage from the app configuration
+                    const estimatedMemory = apps[activeWindowElement.appName] ? apps[activeWindowElement.appName].memoryUsage : 'N/A';
+
+
+                    const listItem = document.createElement('li');
+                    listItem.className = 'flex justify-between items-center py-2 px-3 hover:bg-gray-50'; // Use hover for visibility
+                    // Update: Use light text colors for the dark background
+                    listItem.innerHTML = `
+                        <span class="flex-grow truncate text-white">${appTitle}</span>
+                        <span class="w-24 text-right text-gray-300">${estimatedMemory} MB</span>
+                        <button class="end-process-btn modern-btn danger px-3 py-1 text-xs ml-4">结束任务</button>
+                    `;
+                    // Update: Adjust hover color for dark theme
+                    listItem.addEventListener('mouseover', () => listItem.style.backgroundColor = 'rgba(255, 255, 255, 0.1)');
+                    listItem.addEventListener('mouseout', () => listItem.style.backgroundColor = 'transparent');
+
+
+                    processList.appendChild(listItem);
+
+                    // Attach click listener to "End Process" button
+                    const endProcessBtn = listItem.querySelector('.end-process-btn');
+                    endProcessBtn.addEventListener('click', () => {
+                        // Use the close button logic to handle Notepad's save prompt
+                        const closeButton = activeWindowElement.querySelector('.close-button');
+                        if (closeButton) {
+                            closeButton.click();
+                        } else {
+                            closeAndCleanupWindow(activeWindowElement);
+                        }
+                        // Re-populate the list after ending a process
+                        populateTaskManager(taskManagerWindowElement);
+                    });
+                });
+
+                if (processList.children.length === 0) {
+                    processList.innerHTML = '<li class="text-center text-gray-400 py-4">没有运行中的应用程序。</li>';
+                }
+            }
+
+
+            // --- Modal Event Listeners ---
+            // Handle Save confirmation modal clicks (for Notepad)
+            saveYesBtn.addEventListener('click', () => {
+                saveConfirmModalWrapper.classList.add('hidden');
+                filenameInputModalWrapper.classList.remove('hidden'); // Show filename input modal
+                filenameInput.value = currentNotepadFilePath || '未命名.txt'; // Pre-fill filename
+                filenameInput.focus();
+                filenameInput.select(); // Select content for easy modification
+            });
+
+            saveNoBtn.addEventListener('click', () => {
+                saveConfirmModalWrapper.classList.add('hidden');
+                closeAndCleanupWindow(currentNotepadWindow); // Don't save, close directly
+                currentNotepadWindow = null; // Clear reference
+            });
+
+            saveCancelBtn.addEventListener('click', () => {
+                saveConfirmModalWrapper.classList.add('hidden');
+                // Cancel save, don't close window, keep window state
+                if (currentNotepadWindow) {
+                    activateWindow(currentNotepadWindow); // Reactivate window
+                }
+                currentNotepadWindow = null; // Clear reference
+            });
+
+            // Handle filename input modal clicks
+            filenameSaveBtn.addEventListener('click', () => {
+                const filename = filenameInput.value.trim();
+                if (filename) {
+                    // Save to localStorage
+                    localStorage.setItem('windows1_file_' + filename, currentNotepadContent);
+                    createDesktopFileIcon(filename); // Create file icon on desktop
+                    
+                    // --- NEW LOGIC: Update Instance Tracker & Window State ---
+                    
+                    // 1. 获取旧的实例 ID 并从跟踪器中移除 (例如从 'notepad:unsaved' 变为 'notepad:filename')
+                    const oldInstanceId = currentNotepadWindow.instanceId;
+                    if (oldInstanceId && openInstanceTracker.has(oldInstanceId)) {
+                        openInstanceTracker.delete(oldInstanceId);
+                    }
+
+                    // 2. 更新窗口属性和实例 ID
+                    const newInstanceId = `notepad:${filename}`;
+                    currentNotepadWindow.instanceId = newInstanceId;
+                    currentNotepadWindow.filePath = filename; 
+                    currentNotepadWindow.originalContent = currentNotepadContent; // 更新原始内容
+                    currentNotepadWindow.isModified = false; // 重置修改标志
+                    
+                    // 3. 使用新的 ID 更新跟踪器
+                    openInstanceTracker.set(newInstanceId, currentNotepadWindow);
+
+                    // 4. 更新视觉元素 (标题栏和任务栏)
+                    const titleSpan = currentNotepadWindow.querySelector('.window-title-text');
+                    if (titleSpan) titleSpan.textContent = filename;
+                    
+                    const taskbarItem = activeWindowsMap.get(currentNotepadWindow);
+                    if (taskbarItem) taskbarItem.title = filename;
+                    
+                    // --- END NEW LOGIC ---
+
+                    filenameInputModalWrapper.classList.add('hidden');
+                    
+                    // 保存后保持窗口打开并激活它 (替换原来的关闭逻辑)
+                    activateWindow(currentNotepadWindow); 
+                    
+                    currentNotepadWindow = null; // 清除引用
+                    
+                    // 触发所有已打开资源管理器窗口的刷新
+                    document.querySelectorAll('.window[data-app-name="explorer"]').forEach(expWindow => {
+                        expWindow.querySelector('#explorer-up-button').click(); 
+                        expWindow.querySelector('#explorer-up-button').click();
+                    });
+                } else {
+                    showCustomAlert('错误', '文件名不能为空！');
+                }
+            });
+
+            filenameCancelBtn.addEventListener('click', () => {
+                filenameInputModalWrapper.classList.add('hidden');
+                // Cancel filename input, return to Notepad window
+                if (currentNotepadWindow) {
+                    activateWindow(currentNotepadWindow); // Reactivate window
+                }
+                currentNotepadWindow = null; // Clear reference
+            });
+            // --- End Modal Event Listeners ---
+
+            // Add click event listener to all desktop icons (including newly added file icons)
+            desktop.addEventListener('click', (e) => {
+                let targetIcon = e.target.closest('.icon');
+                if (targetIcon) {
+                    const appName = targetIcon.dataset.appName;
+                    const fileName = targetIcon.dataset.fileName; // Could be undefined
+                    if (appName) { // Ensure it's a valid app icon
+                        openWindow(appName, fileName);
+                    }
+                }
+            });
+
+
+            // Initial setup
+            updateTaskbarClock();
+            setInterval(updateTaskbarClock, 1000);
+            loadSavedFiles();
+        });
+    </script>
+</body>
+</html>
